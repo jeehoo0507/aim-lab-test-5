@@ -166,12 +166,57 @@ def concurrent_runs():
     return max(1, int(os.environ.get("STAGE0_CONCURRENT_RUNS", "1")))
 
 
+def _read(path):
+    try:
+        return Path(path).read_text().split()
+    except OSError:
+        return None
+
+
+def cpu_count():
+    """CPUs this process may actually use: min(affinity, cgroup CPU quota).
+
+    os.cpu_count() reports the whole host inside a container (Kubernetes / Coder pods), which would
+    start far more data-loader workers than the pod's CPU limit allows.
+    $STAGE0_CPUS overrides the detection.
+    """
+    if os.environ.get("STAGE0_CPUS"):
+        return max(1, int(os.environ["STAGE0_CPUS"]))
+    n = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
+    quota = None
+    v2 = _read("/sys/fs/cgroup/cpu.max")                       # cgroup v2: "max 100000" | "800000 100000"
+    if v2 and v2[0] != "max":
+        quota = int(v2[0]) / int(v2[1])
+    else:
+        q, p = _read("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"), _read("/sys/fs/cgroup/cpu/cpu.cfs_period_us")
+        if q and p and int(q[0]) > 0:                          # cgroup v1: quota -1 = unlimited
+            quota = int(q[0]) / int(p[0])
+    if quota is not None:
+        n = min(n, max(1, int(quota)))
+    return max(1, n)
+
+
+def mem_limit_gb():
+    """RAM this process may use in GiB: min(cgroup memory limit, physical RAM). $STAGE0_MEM_GB overrides."""
+    if os.environ.get("STAGE0_MEM_GB"):
+        return float(os.environ["STAGE0_MEM_GB"])
+    limits = []
+    meminfo = _read("/proc/meminfo")
+    if meminfo and "MemTotal:" in meminfo:
+        limits.append(int(meminfo[meminfo.index("MemTotal:") + 1]) * 1024)
+    for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        v = _read(path)
+        if v and v[0].isdigit():
+            limits.append(int(v[0]))
+    return min(limits) / 2**30 if limits else float("inf")
+
+
 def default_num_workers():
-    return max(1, min(8, (os.cpu_count() or 1) // concurrent_runs()))
+    return max(1, min(8, cpu_count() // concurrent_runs()))
 
 
 def set_cpu_threads():
-    torch.set_num_threads(max(1, (os.cpu_count() or 1) // concurrent_runs()))
+    torch.set_num_threads(max(1, cpu_count() // concurrent_runs()))
 
 
 def preflight_settings(out_root):

@@ -54,7 +54,7 @@ def parse_args(argv=None):
     ap.add_argument("--micro-batch", type=int, default=None,
                     help="per-step batch (grad accumulation up to --batch-size); default from preflight.json")
     ap.add_argument("--num-workers", type=int, default=None,
-                    help="default min(8, cpu_count // $STAGE0_CONCURRENT_RUNS)")
+                    help="default min(8, usable CPUs (cgroup-aware) // $STAGE0_CONCURRENT_RUNS)")
     ap.add_argument("--subdir", default=None, help="replace the {mode} path component (lr selection)")
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--no-amp", action="store_true")

@@ -119,7 +119,7 @@ def main(argv=None):
 
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--datasets", nargs="+", default=list(C.DATASETS), choices=C.DATASETS)
-    ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) // 2))
+    ap.add_argument("--workers", type=int, default=max(1, C.cpu_count() // 2))
     ap.add_argument("--data-root")
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--n", type=int, default=C.CORRUPTION_SUBSET, help="[smoke] subset size")

@@ -310,7 +310,7 @@ def main(argv=None):
                     help="slots a teacher fine-tune occupies (default: preflight.json, else the whole GPU)")
     ap.add_argument("--datasets", nargs="+", default=list(C.DATASETS), choices=C.DATASETS)
     ap.add_argument("--corruption-workers", type=int,
-                    default=int(os.environ.get("CORRUPTION_WORKERS", max(1, (os.cpu_count() or 2) // 2))))
+                    default=int(os.environ.get("CORRUPTION_WORKERS", max(1, C.cpu_count() // 2))))
     ap.add_argument("--max-cpu-jobs", type=int, default=1)
     ap.add_argument("--fallback-alpha1", action="store_true", help="also run KD alpha=1.0 x 3 seeds (5절 fallback)")
     ap.add_argument("--poll", type=float, default=5.0)

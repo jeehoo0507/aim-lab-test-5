@@ -28,6 +28,19 @@ tmux new -s stage0 './run_stage0.sh'
 ./status.sh            # 진행 상황 표
 ```
 
+### tmux 없이 한 번에 (1→4, 실패하면 그 단계에서 멈춤, 터미널을 닫아도 계속 돈다)
+
+```bash
+export DATA_ROOT=$HOME/stage0/data OUTPUT_ROOT=$HOME/stage0/outputs HF_HOME=$HOME/stage0/hf GPUS=0
+setsid nohup bash -c 'uv run python -m stage0.preflight && uv run python -m stage0.prepare_data \
+  && ./smoke_test.sh && ./run_stage0.sh' > $HOME/stage0.log 2>&1 < /dev/null &
+tail -f $HOME/stage0.log     # Ctrl+C로 보기만 멈춤 (실행은 계속)
+```
+
+컨테이너(Kubernetes, Coder 등)에서는 `os.cpu_count()`와 `free`가 호스트 전체 값을 보여준다. CPU 수와 RAM은
+cgroup 제한을 읽어서 쓴다 (`stage0/common.py: cpu_count(), mem_limit_gb()`). preflight의 `RUNS_PER_GPU`
+추천값은 GPU 메모리·CPU·RAM 중 가장 작은 쪽으로 정해진다. 감지가 틀리면 `STAGE0_CPUS`, `STAGE0_MEM_GB`로 덮어쓴다.
+
 인터넷이 막힌 서버: preflight가 필요한 파일 목록을 출력한다. 요약하면
 - timm 가중치 `timm/deit_base_patch16_224.fb_in1k`, `timm/deit_tiny_patch16_224.fb_in1k`를
   다른 머신에서 받아 `$HF_HOME/hub/`에 복사

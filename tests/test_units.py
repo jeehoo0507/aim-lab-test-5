@@ -70,10 +70,42 @@ def test_augmentation_independent_of_workers(data_root):
     assert not torch.equal(a, batches(1, 0)), "different seeds must give different batches"
 
 
+def test_container_limits():
+    """cpu_count / mem_limit_gb follow the cgroup limits, not the host totals."""
+    real_read = C._read
+    host_cpus = len(os.sched_getaffinity(0))
+    meminfo = ["MemTotal:", str(64 * 2**20), "kB"]  # 64 GiB host
+    cases = [
+        # (files, expected cpus, expected mem GiB)
+        ({"/sys/fs/cgroup/cpu.max": ["max", "100000"]}, host_cpus, 64.0),
+        ({"/sys/fs/cgroup/cpu.max": ["150000", "100000"], "/sys/fs/cgroup/memory.max": [str(16 * 2**30)]},
+         min(host_cpus, 1), 16.0),
+        ({"/sys/fs/cgroup/cpu/cpu.cfs_quota_us": ["-1"], "/sys/fs/cgroup/cpu/cpu.cfs_period_us": ["100000"],
+          "/sys/fs/cgroup/memory/memory.limit_in_bytes": ["9223372036854771712"]}, host_cpus, 64.0),
+        ({"/sys/fs/cgroup/memory.max": ["max"]}, host_cpus, 64.0),
+    ]
+    try:
+        for files, want_cpu, want_mem in cases:
+            files = {**files, "/proc/meminfo": meminfo}
+            C._read = lambda p, files=files: files.get(str(p))
+            assert C.cpu_count() == want_cpu, (files, C.cpu_count())
+            assert abs(C.mem_limit_gb() - want_mem) < 1e-6, (files, C.mem_limit_gb())
+        C._read = lambda p: {"/sys/fs/cgroup/cpu.max": ["400000", "100000"]}.get(str(p))
+        assert C.cpu_count() == min(host_cpus, 4)
+    finally:
+        C._read = real_read
+    os.environ["STAGE0_CPUS"], os.environ["STAGE0_MEM_GB"] = "3", "12"
+    try:
+        assert C.cpu_count() == 3 and C.mem_limit_gb() == 12.0
+    finally:
+        del os.environ["STAGE0_CPUS"], os.environ["STAGE0_MEM_GB"]
+
+
 if __name__ == "__main__":
     test_teacher_forward()
     test_kd_loss_matches_maskedkd()
     test_recipe_asserts()
+    test_container_limits()
     dr = os.environ.get("DATA_ROOT")
     if dr and (Path(dr) / "cub" / "stage0_split.json").exists():
         test_augmentation_independent_of_workers(dr)

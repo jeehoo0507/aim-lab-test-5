@@ -25,6 +25,8 @@ MIN_DISK_GB = 30
 HF_REPOS = {C.TEACHER_ARCH: "timm/deit_base_patch16_224.fb_in1k",
             C.STUDENT_ARCH: "timm/deit_tiny_patch16_224.fb_in1k"}
 CONTEXT_OVERHEAD_GB = 0.6   # CUDA context + allocator slack per process
+RAM_PER_RUN_GB = 4.0        # host RAM per concurrent run (torch/CUDA process + its data-loader workers)
+RAM_RESERVE_GB = 4.0        # scheduler, corruption-cache workers, OS
 
 
 class Report:
@@ -267,8 +269,15 @@ def main(argv=None):
         rep.warn("HF_HOME", "not set", "export HF_HOME=/path/with/space (timm weight cache); default ~/.cache/huggingface")
     check_disk_and_perms(rep, paths)
     check_network(rep, data_root)
-    ncpu = os.cpu_count() or 1
-    rep.ok("CPU", f"{ncpu} cores")
+    ncpu = C.cpu_count()
+    host = os.cpu_count() or 1
+    rep.ok("CPU", f"{ncpu} usable" + (f" (host reports {host}; container/affinity limit applied)" if host != ncpu else ""))
+    ram = C.mem_limit_gb()
+    if ram < RAM_RESERVE_GB + RAM_PER_RUN_GB:
+        rep.warn("RAM", f"{ram:.1f} GiB usable", f"Less than {RAM_RESERVE_GB + RAM_PER_RUN_GB:.0f} GiB: runs may be "
+                 "killed by the OOM killer. Use RUNS_PER_GPU=1 or a machine with more RAM.")
+    else:
+        rep.ok("RAM", f"{ram:.1f} GiB usable (container limit applied)")
 
     mem = None
     if gpu_info and gpus and not args.skip_memory_test and not rep.fails:
@@ -280,9 +289,11 @@ def main(argv=None):
         per_run = mem["kd"]["peak_gb"] + CONTEXT_OVERHEAD_GB
         by_mem = int(free * 0.92 // per_run)
         by_cpu = max(1, ncpu // (2 * len(gpus)))
-        runs = max(1, min(8, by_mem, by_cpu))
+        by_ram = max(1, int((ram - RAM_RESERVE_GB) // RAM_PER_RUN_GB) // len(gpus))
+        runs = max(1, min(8, by_mem, by_cpu, by_ram))
         t_cost = min(runs, -(-(mem["teacher"]["peak_gb"] + CONTEXT_OVERHEAD_GB) // per_run))
-        rep.ok("RUNS_PER_GPU (suggested)", f"{runs}  (memory allows {by_mem}, CPU allows {by_cpu})")
+        rep.ok("RUNS_PER_GPU (suggested)", f"{runs}  (GPU memory allows {by_mem}, CPU allows {by_cpu}, "
+                                           f"RAM allows {by_ram})")
         rep.ok("teacher slot cost", f"{int(t_cost)} of {runs} slots (max 1 teacher fine-tune per GPU; "
                                     f"student runs share the rest)")
         steps = {"cub": 5394 // 128, "waterbirds": 4795 // 128}
@@ -293,7 +304,7 @@ def main(argv=None):
         C.save_json(out_root / "preflight.json", {
             "micro_batch": {"teacher": mem["teacher"]["micro_batch"], "ce": mem["kd"]["micro_batch"],
                             "kd": mem["kd"]["micro_batch"]},
-            "suggested_runs_per_gpu": runs, "teacher_slot_cost": int(t_cost), "memory": mem, "gpus": sel, "cpu_count": ncpu,
+            "suggested_runs_per_gpu": runs, "teacher_slot_cost": int(t_cost), "memory": mem, "gpus": sel, "cpu_count": ncpu, "ram_gb": ram,
             "torch": torch.__version__, "cuda": torch.version.cuda, "created": time.strftime("%F %T")})
     rep.print()
     if rep.fails:
