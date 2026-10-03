@@ -14,8 +14,10 @@ Errors out if the split sizes differ from the official numbers.
 """
 import argparse
 import csv
+import hashlib
 import random
 import shutil
+import subprocess
 import sys
 import tarfile
 import urllib.request
@@ -25,6 +27,9 @@ from pathlib import Path
 from stage0 import common as C
 from stage0.datasets import EXPECTED_SPLITS, SPLIT_FILE, dataset_dir
 
+# Some hosts (data.caltech.edu) answer 403 to urllib's default "Python-urllib/x.y" User-Agent.
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) stage0-prepare-data"
+
 SOURCES = {
     "cub": {
         "archive": "CUB_200_2011.tgz",
@@ -32,6 +37,7 @@ SOURCES = {
             "https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz?download=1",
         ],
         "folder": "CUB_200_2011",
+        "md5": "97eceeb196236b17998738112f37df78",  # checksum used by common CUB loaders; mismatch only warns
     },
     "waterbirds": {
         "archive": "waterbird_complete95_forest2water2.tar.gz",
@@ -46,18 +52,51 @@ VAL_FRACTION = 0.10
 VAL_SEED = 0
 
 
-def download(urls, dest):
+def _get_urllib(url, tmp):
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
+        shutil.copyfileobj(r, f, length=1 << 20)
+
+
+def _get_cli(url, tmp):
+    if shutil.which("curl"):
+        cmd = ["curl", "-sS", "-L", "--fail", "--retry", "3", "-A", USER_AGENT, "-o", str(tmp), url]
+    elif shutil.which("wget"):
+        cmd = ["wget", "-q", "-U", USER_AGENT, "-O", str(tmp), url]
+    else:
+        raise RuntimeError("neither curl nor wget is installed")
+    subprocess.run(cmd, check=True, timeout=3600)
+
+
+def _md5(path):
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def download(urls, dest, md5=None):
     dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dest.with_suffix(dest.suffix + ".part")
     for url in urls:
-        try:
-            print(f"downloading {url} -> {dest}")
-            tmp = dest.with_suffix(dest.suffix + ".part")
-            with urllib.request.urlopen(url, timeout=60) as r, open(tmp, "wb") as f:
-                shutil.copyfileobj(r, f, length=1 << 20)
-            tmp.rename(dest)
-            return
-        except Exception as e:  # noqa: BLE001 - try next mirror
-            print(f"  failed: {e}")
+        for how, fn in (("urllib", _get_urllib), ("curl/wget", _get_cli)):
+            try:
+                print(f"downloading ({how}) {url} -> {dest}", flush=True)
+                fn(url, tmp)
+                if tmp.stat().st_size < 1 << 20:
+                    raise RuntimeError(f"downloaded only {tmp.stat().st_size} bytes (error page?)")
+                if md5:
+                    got = _md5(tmp)
+                    if got != md5:
+                        print(f"  [warn] md5 {got} != expected {md5}; continuing (split sizes are checked next)",
+                              flush=True)
+                tmp.rename(dest)
+                print(f"  ok ({dest.stat().st_size / 2**20:.0f} MiB)", flush=True)
+                return
+            except Exception as e:  # noqa: BLE001 - try the next method / mirror
+                print(f"  failed: {e}", flush=True)
+                tmp.unlink(missing_ok=True)
     sys.exit(f"[error] could not download {dest.name}. Download it manually from one of\n  "
              + "\n  ".join(urls) + f"\nand place it at {dest}")
 
@@ -71,8 +110,8 @@ def ensure_extracted(data_root, name, skip_download):
     if not archive.exists():
         if skip_download:
             sys.exit(f"[error] {ddir / src['folder']} not found and {archive} missing")
-        download(src["urls"], archive)
-    print(f"extracting {archive} -> {ddir}")
+        download(src["urls"], archive, src.get("md5"))
+    print(f"extracting {archive} -> {ddir}", flush=True)
     ddir.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive) as t:
         t.extractall(ddir, filter="data")
