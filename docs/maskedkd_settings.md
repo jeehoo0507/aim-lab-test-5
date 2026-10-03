@@ -119,3 +119,48 @@ loss = base_loss * (1 - self.alpha) + distillation_loss * self.alpha
 
 KD 손실 식(KL batchmean × τ², α=0.5, τ=1), AdamW, wd 0.05, cosine, warmup 5, test Resize(256)→CenterCrop(224),
 ImageNet mean/std는 Stage 0 계획과 일치한다.
+
+## 6. Stage 0 채택 설정 (팀 결정, 2026-10-03)
+
+구현 위치: `stage0/common.py` (상수), `stage0/datasets.py` (transform), `stage0/losses.py`, `stage0/train.py`.
+"MaskedKD와 다름"인 항목마다 이유를 적었다.
+
+| 항목 | Stage 0 | MaskedKD | 다름 | 이유 |
+|---|---|---|---|---|
+| Teacher | `deit_base_patch16_224` ImageNet-1k → 타깃 데이터셋 fine-tune | ImageNet pretrained 그대로 | 다름 | 타깃 데이터셋(CUB/Waterbirds)은 ImageNet과 클래스가 달라 fine-tune 없이는 teacher logit을 쓸 수 없음 |
+| Student 초기화 | `deit_tiny_patch16_224` ImageNet-1k pretrained (head 새로 초기화) | scratch | 다름 | 소규모 데이터에서 scratch student는 KD/CE 모두 성능이 낮고, 이전 실험의 실패 요인 제거를 위해 teacher·student 모두 pretrained로 통일 |
+| RRC | scale (0.08, 1.0), ratio (3/4, 4/3), bicubic | 동일 | 같음 | |
+| Horizontal flip | p=0.5 | 동일 | 같음 | |
+| RandAugment | `rand-m9-mstd0.5-inc1` (teacher, student 모두) | 동일 | 같음 | |
+| Color jitter | 미적용 (RandAugment 사용 시 꺼짐) | 동일 | 같음 | |
+| Random erasing | 0.25, pixel, count 1 (teacher, student 모두) | 동일 | 같음 | |
+| Mixup / Cutmix (student) | 0.8 / 1.0, prob 1.0, switch 0.5, batch mode | 동일 | 같음 | |
+| Mixup / Cutmix (teacher) | 끔 (assert) | (teacher 학습 없음) | 다름 | teacher fine-tune에서 soft target 학습을 피하고 hard label로 학습 (이전 실패: teacher 출력이 label smoothing에 의해 평탄화) |
+| Label smoothing (student) | 0.1 (mixup 타깃에 포함) | 0.1 | 같음 | |
+| Label smoothing (teacher) | 0.0 (assert) | (teacher 학습 없음) | 다름 | 이전 실험의 KD≈CE 원인. teacher 출력의 오답 클래스 정보가 smoothing으로 균일해지는 것을 막음 |
+| Repeated aug | 끔 (모든 run) | 켬 (×3) | 다름 | RASampler는 에포치당 고유 이미지 수를 1/3로 줄임 (`samplers.py:35,58`); 수천 장 규모 데이터에서는 손해 |
+| CE 기준 손실 (student) | SoftTargetCrossEntropy (mixup 타깃) | 동일 | 같음 | |
+| CE 기준 손실 (teacher) | CrossEntropy(label_smoothing=0) | – | – | |
+| KD 손실 | `(1-α)·CE + α·KLDiv(batchmean)(log_softmax(s/τ), softmax(t/τ))·τ²`, α=0.5, τ=1 | 동일 (`losses.py:43-49`) | 같음 | |
+| KD teacher 입력 | student와 같은 mixup 적용 후 텐서, `eval()` + `no_grad` | 동일 (`engine.py:39-43`) | 같음 | |
+| Student CE vs KD | 완전히 같은 레시피 (같은 seed → 같은 head 초기화·데이터 순서·증강·mixup 난수) | – | – | 비교의 유일한 차이를 KD 항으로 한정 |
+| Optimizer | AdamW, wd 0.05, eps 1e-8, bias/norm/pos_embed/cls_token wd 제외 | 동일 (timm create_optimizer) | 같음 | |
+| lr | sweep: teacher {5e-5, 1e-4}, student CE {5e-5, 1e-4, 3e-4}; CE에서 고른 lr을 KD에도 사용 | 5e-4 × batch/512 (선형 스케일) | 다름 | fine-tune 규모(소규모 데이터, pretrained)에서 ImageNet scratch용 lr은 맞지 않음. 데이터셋별로 val로 선택 |
+| Schedule | cosine, warmup 5 에포치 (warmup lr 1e-6), 에포치 단위 갱신 | 동일 | 같음 | |
+| min lr | base lr / 100 | 1e-5 (절대값) | 다름 | lr이 5e-5~3e-4라 절대값 1e-5는 lr마다 감쇠 비율이 달라짐 → 비율로 통일 |
+| Cooldown | 0 (총 100 에포치 고정) | 10 | 다름 | 모든 run의 에포치 수를 100으로 동일하게 유지 |
+| Epochs | 100 | 300 | 다름 | 소규모 데이터 fine-tune에 충분, 계산량 절약 |
+| Batch | 128 (유효), OOM 시 gradient accumulation | GPU당 128 × 8 GPU | 다름 | 단일 GPU run. mixup은 128 전체 배치에 적용한 뒤 micro-batch로 나눠서 micro-batch 크기와 무관하게 동일 |
+| drop_path | 0.1 (teacher fine-tune, student 모두) | 0.1 | 같음 | |
+| Train interpolation | bicubic | 동일 | 같음 | |
+| Test transform | Resize(256, bicubic) → CenterCrop(224) → Normalize(ImageNet) | 동일 | 같음 | |
+| AMP | fp16 autocast + GradScaler | 동일 | 같음 | |
+| Student 평가 | 마지막 에포치 | best val | 다름 | val 선택에 의한 낙관적 편향 제거 (사전 고정 규칙) |
+| Teacher 체크포인트 | val 최고 에포치 | – | – | |
+| Teacher 진단 view | train 이미지 + train 증강 (RRC + flip + RandAugment + erasing), **mixup 전**, seed 0, 1 pass | – | – | KD 때 teacher가 실제로 보는 증강 분포에서 teacher 출력의 정보량을 측정. mixup은 라벨 정의를 바꾸므로 제외 |
+
+구현상 결정 (팀 결정 범위 밖, 결과에 영향 없음):
+- lr 선택 run (seed 0)은 본 run seed 0과 설정이 완전히 같으므로, 선택된 lr의 sweep run을 `outputs/{dataset}/{teacher|ce}/seed0/`로 승격(hard link)해서 다시 학습하지 않는다. 데이터셋마다 DeiT-B teacher 1회, CE 1회를 절약한다.
+- student lr 선택 기준은 CE의 **마지막 에포치** val acc(student 평가 규칙과 일치), teacher는 **best 에포치** val acc(teacher 체크포인트 규칙과 일치). 동점이면 작은 lr.
+- Waterbirds는 C=2라 "오답 클래스 정규화 엔트로피 / log(C−1)"이 정의되지 않아 `null`로 기록한다.
+- `imagecorruptions` 1.1.2는 최신 scikit-image/NumPy와 호환되지 않아 `stage0/corruption_compat.py`에서 인자 이름만 맞춰준다 (`multichannel` → `channel_axis`, `np.float_` → `float64`). impulse_noise의 난수를 numpy seed에 연결해 캐시를 재현 가능하게 했다. corruption 내용 자체는 바뀌지 않는다.
