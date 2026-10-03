@@ -22,3 +22,6 @@ dependencies = [
 
 [tool.uv]
 package = false
+# imagecorruptions depends on opencv-python (GUI build, needs libGL.so.1, which containers often lack:
+# "ImportError: libGL.so.1"). Drop it; opencv-python-headless above provides the same cv2 module.
+override-dependencies = ["opencv-python ; sys_platform == 'never'"]

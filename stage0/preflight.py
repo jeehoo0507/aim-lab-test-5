@@ -268,6 +268,12 @@ def main(argv=None):
     else:
         rep.warn("HF_HOME", "not set", "export HF_HOME=/path/with/space (timm weight cache); default ~/.cache/huggingface")
     check_disk_and_perms(rep, paths)
+    try:
+        shm_mb = shutil.disk_usage("/dev/shm").total / 2**20
+        rep.ok("/dev/shm", f"{shm_mb:.0f} MiB" + ("  (small, but fine: data loaders pass batches through pipes, "
+                                                   "not shared memory)" if shm_mb < 1024 else ""))
+    except OSError:
+        pass
     check_network(rep, data_root)
     ncpu = C.cpu_count()
     host = os.cpu_count() or 1

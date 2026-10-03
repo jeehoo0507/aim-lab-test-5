@@ -41,6 +41,13 @@ tail -f $HOME/stage0.log     # Ctrl+C로 보기만 멈춤 (실행은 계속)
 cgroup 제한을 읽어서 쓴다 (`stage0/common.py: cpu_count(), mem_limit_gb()`). preflight의 `RUNS_PER_GPU`
 추천값은 GPU 메모리·CPU·RAM 중 가장 작은 쪽으로 정해진다. 감지가 틀리면 `STAGE0_CPUS`, `STAGE0_MEM_GB`로 덮어쓴다.
 
+컨테이너에서 겪은 문제와 대응:
+- `/dev/shm`이 64MB뿐이라 DataLoader worker가 `Bus error`로 죽음 → worker가 배치를 numpy로 만들어 파이프로 넘긴다
+  (`stage0/engine.py: numpy_collate`). `/dev/shm` 크기와 무관하고 값은 동일하다.
+- `ImportError: libGL.so.1` (imagecorruptions가 GUI용 opencv-python을 끌어옴) → `pyproject.toml`에서 opencv-python을
+  제외하고 headless만 설치한다. 예전 환경을 갱신할 때는 `rm -rf .venv && uv sync` (두 패키지가 같은 `cv2/` 파일을
+  공유해서 제자리 제거가 깨질 수 있음).
+
 인터넷이 막힌 서버: preflight가 필요한 파일 목록을 출력한다. 요약하면
 - timm 가중치 `timm/deit_base_patch16_224.fb_in1k`, `timm/deit_tiny_patch16_224.fb_in1k`를
   다른 머신에서 받아 `$HF_HOME/hub/`에 복사
