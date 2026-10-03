@@ -80,12 +80,55 @@ class Stage0Dataset(torch.utils.data.Dataset):
         return x, label, group
 
 
-def build_train_transform():
+class _RecordingRRC(RandomResizedCropAndInterpolation):
+    """timm RRC that also records the crop box. Same RNG calls and same output as the parent."""
+
+    last = None
+
+    def __call__(self, img):
+        i, j, h, w = self.get_params(img, self.scale, self.ratio)
+        interpolation = self.interpolation
+        if isinstance(interpolation, (tuple, list)):
+            interpolation = random.choice(interpolation)
+        W, H = img.size
+        self.last = (i, j, h, w, W, H)
+        return transforms.functional.resized_crop(img, i, j, h, w, self.size, interpolation)
+
+
+class _RecordingFlip(transforms.RandomHorizontalFlip):
+    """torchvision RandomHorizontalFlip that records whether it flipped. Same RNG call and output."""
+
+    last = None
+
+    def forward(self, img):
+        self.last = bool(torch.rand(1) < self.p)
+        return transforms.functional.hflip(img) if self.last else img
+
+
+class TrainTransformWithBox:
+    """build_train_transform() that returns (image, box). box = float32 [i, j, h, w, flip, W, H]:
+    the RandomResizedCrop box in original-image pixels (top, left, height, width), whether the crop
+    was flipped, and the original size. The image is bit-identical to build_train_transform()'s."""
+
+    def __init__(self, ops):
+        self.ops = ops
+        self.rrc, self.flip = ops[0], ops[1]
+        assert isinstance(self.rrc, _RecordingRRC) and isinstance(self.flip, _RecordingFlip)
+
+    def __call__(self, img):
+        for op in self.ops:
+            img = op(img)
+        i, j, h, w, W, H = self.rrc.last
+        return img, np.array([i, j, h, w, float(self.flip.last), W, H], dtype=np.float32)
+
+
+def build_train_transform(return_box=False):
     """MaskedKD transforms_imagenet_train with its main.py defaults (transforms_factory.py:56-139).
 
     RRC(0.08-1, bicubic) -> hflip -> RandAugment(rand-m9-mstd0.5-inc1) -> ToTensor -> Normalize
     -> RandomErasing(0.25, pixel). Mixup/cutmix are batch-level and live in train.py.
     Color jitter is not applied because RandAugment is on (transforms_factory.py:110).
+    return_box=True: TrainTransformWithBox (same image + crop box / flip), used by Stage 1 / attribution.
     """
     interp = str_to_pil_interp(C.INTERPOLATION)
     aa_params = dict(
@@ -93,15 +136,17 @@ def build_train_transform():
         img_mean=tuple(min(255, round(255 * x)) for x in IMAGENET_DEFAULT_MEAN),
         interpolation=interp,
     )
-    return transforms.Compose([
-        RandomResizedCropAndInterpolation(C.IMG_SIZE, scale=C.RRC_SCALE, ratio=C.RRC_RATIO,
-                                          interpolation=C.INTERPOLATION),
-        transforms.RandomHorizontalFlip(p=C.HFLIP),
+    rrc_cls, flip_cls = (_RecordingRRC, _RecordingFlip) if return_box else \
+        (RandomResizedCropAndInterpolation, transforms.RandomHorizontalFlip)
+    ops = [
+        rrc_cls(C.IMG_SIZE, scale=C.RRC_SCALE, ratio=C.RRC_RATIO, interpolation=C.INTERPOLATION),
+        flip_cls(p=C.HFLIP),
         rand_augment_transform(C.RAND_AUGMENT, aa_params),
         transforms.ToTensor(),
         transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
         RandomErasing(C.REPROB, mode=C.REMODE, max_count=C.RECOUNT, num_splits=0, device="cpu"),
-    ])
+    ]
+    return TrainTransformWithBox(ops) if return_box else transforms.Compose(ops)
 
 
 def eval_crop():

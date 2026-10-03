@@ -16,6 +16,11 @@ import torch
 
 DATASETS = ("cub", "waterbirds")
 MODES = ("teacher", "ce", "kd")
+MASK_MODE = "maskedkd"                 # Stage 2: KD with a token-reduced teacher input
+TRAIN_MODES = MODES + (MASK_MODE,)
+KD_MODES = ("kd", MASK_MODE)
+MASK_KEEPS = (0.5, 0.3, 0.15)
+CKPT_EPOCHS = (10, 30, 60)             # Stage 2: extra student-only checkpoints for later fidelity runs
 NUM_CLASSES = {"cub": 200, "waterbirds": 2}
 
 TEACHER_ARCH = "deit_base_patch16_224"
@@ -53,6 +58,7 @@ RECIPE = {
     # students (CE and KD identical): MaskedKD defaults
     "ce": dict(smoothing=0.1, mixup=0.8, cutmix=1.0),
     "kd": dict(smoothing=0.1, mixup=0.8, cutmix=1.0),
+    "maskedkd": dict(smoothing=0.1, mixup=0.8, cutmix=1.0),   # identical to kd
 }
 MIXUP_PROB = 1.0
 MIXUP_SWITCH_PROB = 0.5
@@ -112,6 +118,11 @@ def mode_dirname(mode, alpha=KD_ALPHA):
 def run_dir(out_root, dataset, mode, seed, alpha=KD_ALPHA, subdir=None):
     """outputs/{dataset}/{mode}/seed{seed}/  (lr selection: outputs/{dataset}/lrsel/{mode}_lr{lr}/seed0/)."""
     return Path(out_root) / dataset / (subdir or mode_dirname(mode, alpha)) / f"seed{seed}"
+
+
+def mask_dirname(criterion, keep):
+    """Stage 2 run directory name, e.g. maskedkd_k0.3."""
+    return f"{criterion}_k{keep:g}"
 
 
 def lrsel_subdir(mode, lr):

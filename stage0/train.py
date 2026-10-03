@@ -1,6 +1,7 @@
 """Stage 0 training: teacher fine-tune, student CE, student full KD.
 
     uv run python -m stage0.train --mode {teacher,ce,kd} --dataset {cub,waterbirds} --seed S --lr LR
+    uv run python -m stage0.train --mode maskedkd --mask-criterion {maskedkd,random} --keep 0.3 ...  (Stage 2)
 
 Output: $OUTPUT_ROOT/{dataset}/{mode}/seed{seed}/   (--subdir overrides "{mode}", used for lr selection)
     config.json   resolved settings (a rerun with different settings is refused)
@@ -9,12 +10,22 @@ Output: $OUTPUT_ROOT/{dataset}/{mode}/seed{seed}/   (--subdir overrides "{mode}"
     status.json   live progress (read by status.sh)
     last.pt       model / optimizer / scheduler / AMP scaler / RNG / epoch, every epoch (resume point)
     best.pt       teacher only: best val-accuracy epoch
+    ckpt_e{10,30,60}.pt  maskedkd only: student weights at those epochs (later fidelity measurements)
     DONE          written when all epochs finished;  FAILED  written with the traceback on error
 
 Rerunning the same command resumes from last.pt. --overwrite starts from scratch.
+
+Stage 2 (--mode maskedkd): identical to kd (recipe, alpha, tau, lr, teacher, data order) except that the
+teacher sees only k = round(keep * 196) patch tokens chosen per image by --mask-criterion; output dir
+{dataset}/{criterion}_k{keep}/seed{seed}/. log.csv gains mask_agree: masked vs full teacher argmax agreement
+on the first batch of each epoch (one extra full teacher forward per epoch).
+STAGE0_BATCH_HASH_LOG=path (any mode, off by default) appends per-step hashes of the student input batch and
+mixup targets, to check that same-seed runs see identical data.
 """
 import argparse
+import contextlib
 import csv
+import hashlib
 import os
 import random
 import shutil
@@ -34,6 +45,7 @@ from stage0 import common as C
 from stage0.datasets import Stage0Dataset, build_eval_transform, build_train_transform
 from stage0.engine import accuracy, amp_ctx, get_device, make_loader, predict
 from stage0.losses import Stage0Loss
+from stage0.masking import TRAIN_CRITERIA, StudentMaskSelector, num_keep
 from stage0.models import create_student, create_teacher, load_finetuned_teacher, teacher_forward
 
 # Keys that may differ between the original run and a resumed one.
@@ -44,11 +56,15 @@ CSV_FIELDS = ["epoch", "lr", "train_loss", "train_ce", "train_kd", "train_acc", 
 
 def parse_args(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--mode", required=True, choices=C.MODES)
+    ap.add_argument("--mode", required=True, choices=C.TRAIN_MODES)
     ap.add_argument("--dataset", required=True, choices=C.DATASETS)
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--lr", type=float, required=True)
     ap.add_argument("--alpha", type=float, default=C.KD_ALPHA, help="KD weight (kd only; 1.0 = fallback run)")
+    ap.add_argument("--mask-criterion", choices=TRAIN_CRITERIA, default=None, help="[maskedkd] token selection")
+    ap.add_argument("--keep", type=float, default=None, help="[maskedkd] fraction of the 196 patch tokens kept")
+    ap.add_argument("--ckpt-epochs", type=int, nargs="*", default=list(C.CKPT_EPOCHS),
+                    help="[maskedkd] epochs (1-based) after which ckpt_e{epoch}.pt (student weights) is saved")
     ap.add_argument("--epochs", type=int, default=C.EPOCHS)
     ap.add_argument("--batch-size", type=int, default=C.BATCH_SIZE, help="effective batch")
     ap.add_argument("--micro-batch", type=int, default=None,
@@ -72,9 +88,13 @@ def build_config(args, out_root, data_root):
     C.assert_recipe(args.mode, **rec)
     if args.mode != "kd" and args.alpha != C.KD_ALPHA:
         sys.exit("[error] --alpha only applies to --mode kd")
+    if args.mode == C.MASK_MODE and (args.mask_criterion is None or args.keep is None):
+        sys.exit("[error] --mode maskedkd needs --mask-criterion and --keep")
+    if args.mode != C.MASK_MODE and (args.mask_criterion is not None or args.keep is not None):
+        sys.exit("[error] --mask-criterion / --keep only apply to --mode maskedkd")
     if args.batch_size % 2:
         sys.exit("[error] batch size must be even (mixup)")
-    return {
+    config = {
         "mode": args.mode, "dataset": args.dataset, "seed": args.seed, "lr": args.lr,
         "epochs": args.epochs, "batch_size": args.batch_size,
         "arch": C.TEACHER_ARCH if args.mode == "teacher" else C.STUDENT_ARCH,
@@ -87,11 +107,15 @@ def build_config(args, out_root, data_root):
         "reprob": C.REPROB, "remode": C.REMODE, "repeated_aug": C.REPEATED_AUG,
         "smoothing": rec["smoothing"], "mixup": rec["mixup"], "cutmix": rec["cutmix"],
         "mixup_prob": C.MIXUP_PROB, "mixup_switch_prob": C.MIXUP_SWITCH_PROB, "mixup_mode": C.MIXUP_MODE,
-        "kd_alpha": args.alpha if args.mode == "kd" else None,
-        "kd_tau": C.KD_TAU if args.mode == "kd" else None,
+        "kd_alpha": args.alpha if args.mode in C.KD_MODES else None,
+        "kd_tau": C.KD_TAU if args.mode in C.KD_MODES else None,
         "amp": not args.no_amp, "limit": args.limit,
         "data_root": str(data_root), "output_root": str(out_root),
     }
+    if args.mode == C.MASK_MODE:   # extra keys only for Stage 2, so Stage 0 configs are unchanged
+        config.update({"mask_criterion": args.mask_criterion, "keep": args.keep, "keep_k": num_keep(args.keep),
+                       "ckpt_epochs": list(args.ckpt_epochs)})
+    return config
 
 
 def prepare_run_dir(rd, config, overwrite):
@@ -163,10 +187,10 @@ def read_csv_rows(path):
         return list(csv.DictReader(f))
 
 
-def write_csv_rows(path, rows):
+def write_csv_rows(path, rows, fields=CSV_FIELDS):
     tmp = path.with_suffix(".csv.tmp")
     with open(tmp, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(rows)
     os.replace(tmp, path)
@@ -180,7 +204,8 @@ def train(args, rd, config, state):
         torch.backends.cudnn.benchmark = True
     num_workers = args.num_workers if args.num_workers is not None else C.default_num_workers()
     pf = C.preflight_settings(config["output_root"])
-    micro = args.micro_batch or (pf or {}).get("micro_batch", {}).get(args.mode) or args.batch_size
+    pf_mode = "kd" if args.mode == C.MASK_MODE else args.mode   # preflight measured the full-KD step
+    micro = args.micro_batch or (pf or {}).get("micro_batch", {}).get(pf_mode) or args.batch_size
     micro = min(micro, args.batch_size)
     config["num_workers"], config["micro_batch"] = num_workers, micro
     print(f"run dir: {rd}\nstate: {state}  device: {device}  micro_batch: {micro}  "
@@ -200,7 +225,7 @@ def train(args, rd, config, state):
     model = build(config["num_classes"], pretrained=config["pretrained"]).to(device)
 
     teacher = None
-    if args.mode == "kd":
+    if args.mode in C.KD_MODES:
         ck, tcfg = check_teacher(config["output_root"], args.dataset, config["num_classes"])
         if config.get("teacher_run_uid") not in (None, tcfg["run_uid"]):
             sys.exit(f"[error] teacher {ck} changed since this KD run started; use --overwrite")
@@ -220,6 +245,13 @@ def train(args, rd, config, state):
                          switch_prob=C.MIXUP_SWITCH_PROB, mode=C.MIXUP_MODE,
                          label_smoothing=config["smoothing"], num_classes=config["num_classes"])
     assert (mixup_fn is None) == (args.mode == "teacher")
+    masked = args.mode == C.MASK_MODE
+    selector = StudentMaskSelector(args.mask_criterion, args.keep, model) if masked else None
+    stack = contextlib.ExitStack()
+    if selector is not None:
+        stack.enter_context(selector)   # maskedkd: hooks on the student's last attention block
+    csv_fields = CSV_FIELDS + (["mask_agree"] if masked else [])
+    hash_log = os.environ.get("STAGE0_BATCH_HASH_LOG")
 
     start_epoch, best_val, best_epoch = 0, -1.0, -1
     if state == "resume":
@@ -235,7 +267,7 @@ def train(args, rd, config, state):
 
     csv_path = rd / "log.csv"
     rows = [r for r in read_csv_rows(csv_path) if int(r["epoch"]) < start_epoch]
-    write_csv_rows(csv_path, rows)
+    write_csv_rows(csv_path, rows, csv_fields)
 
     steps = len(train_ds) // args.batch_size
     for epoch in range(start_epoch, args.epochs):
@@ -253,18 +285,32 @@ def train(args, rd, config, state):
                              generator=torch.Generator().manual_seed(C.epoch_seed(args.seed, epoch, 2)))
         model.train()
         sums = {"loss": 0.0, "ce": 0.0, "kd": 0.0, "correct": 0, "n": 0}
+        mask_agree = None
         for step, (x, y, _g) in enumerate(loader):
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
             target = y
             if mixup_fn is not None:
                 x, target = mixup_fn(x, y)
+            if hash_log:
+                with open(hash_log, "a") as hf:
+                    hf.write(f"{epoch} {step} {hashlib.sha1(x.cpu().numpy().tobytes()).hexdigest()} "
+                             f"{hashlib.sha1(target.float().cpu().numpy().tobytes()).hexdigest()}\n")
             n = x.shape[0]
             optimizer.zero_grad(set_to_none=True)
-            for xs, ts, ys in zip(x.split(micro), target.split(micro), y.split(micro)):
+            # random criterion: dedicated generator per step (never the global RNG -> pairing with kd preserved)
+            mask_gen = torch.Generator().manual_seed(C.epoch_seed(args.seed, epoch, 4) + step) if masked else None
+            for c, (xs, ts, ys) in enumerate(zip(x.split(micro), target.split(micro), y.split(micro))):
                 with amp_ctx(device, amp):
                     out = model(xs)
-                    t_logits = teacher_forward(teacher, xs) if teacher is not None else None
+                    if masked:
+                        keep_idx = selector.select(xs.shape[0], device, mask_gen)
+                        t_logits = teacher_forward(teacher, xs, keep_idx)
+                        if step == 0 and c == 0:
+                            t_full = teacher_forward(teacher, xs)
+                            mask_agree = (t_logits.argmax(1) == t_full.argmax(1)).float().mean().item()
+                    else:
+                        t_logits = teacher_forward(teacher, xs) if teacher is not None else None
                 loss, ce, kd = criterion(out, ts, t_logits)
                 scaler.scale(loss * (xs.shape[0] / n)).backward()
                 sums["loss"] += loss.item() * xs.shape[0]
@@ -284,9 +330,11 @@ def train(args, rd, config, state):
         n = sums["n"]
         row = {"epoch": epoch, "lr": f"{lr:.6g}", "train_loss": f"{sums['loss'] / n:.5f}",
                "train_ce": f"{sums['ce'] / n:.5f}",
-               "train_kd": f"{sums['kd'] / n:.5f}" if args.mode == "kd" else "",
+               "train_kd": f"{sums['kd'] / n:.5f}" if args.mode in C.KD_MODES else "",
                "train_acc": f"{100.0 * sums['correct'] / n:.3f}", "val_acc": f"{val_acc:.3f}",
                "epoch_time_s": f"{time.time() - t0:.1f}"}
+        if masked:
+            row["mask_agree"] = f"{mask_agree:.4f}"
 
         if args.mode == "teacher" and val_acc > best_val:
             best_val, best_epoch = val_acc, epoch
@@ -295,7 +343,9 @@ def train(args, rd, config, state):
         elif args.mode != "teacher" and val_acc > best_val:
             best_val, best_epoch = val_acc, epoch  # logged only; students are evaluated at the last epoch
         rows.append(row)
-        write_csv_rows(csv_path, rows)
+        write_csv_rows(csv_path, rows, csv_fields)
+        if masked and epoch + 1 in config["ckpt_epochs"]:
+            C.atomic_torch_save(model.state_dict(), rd / f"ckpt_e{epoch + 1}.pt")
         C.atomic_torch_save({"model": model.state_dict(), "optimizer": optimizer.state_dict(),
                              "scheduler": scheduler.state_dict(), "scaler": scaler.state_dict(),
                              "rng": rng_state(), "epoch": epoch, "best_val": best_val,
@@ -318,7 +368,10 @@ def main(argv=None):
     args = parse_args(argv)
     out_root, data_root = C.output_root(args.output_root), C.data_root(args.data_root)
     config = build_config(args, out_root, data_root)
-    rd = C.run_dir(out_root, args.dataset, args.mode, args.seed, args.alpha, args.subdir)
+    subdir = args.subdir
+    if args.mode == C.MASK_MODE and subdir is None:
+        subdir = C.mask_dirname(args.mask_criterion, args.keep)
+    rd = C.run_dir(out_root, args.dataset, args.mode, args.seed, args.alpha, subdir)
     rd.mkdir(parents=True, exist_ok=True)
     with C.RunLock(rd):
         state = prepare_run_dir(rd, config, args.overwrite)

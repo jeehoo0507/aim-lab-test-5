@@ -100,3 +100,47 @@ uv run python -m stage0.make_corruptions --workers 16
 uv run python -m stage0.evaluate --dataset waterbirds --mode kd --seed 0
 uv run python -m stage0.summarize
 ```
+
+---
+
+# Stage 1 + 2: teacher 토큰 마스킹, fidelity, MaskedKD baseline (브랜치 `stage12`)
+
+Stage 0 폴더(`~/aim-lab-test-5`, 브랜치 `claude/upbeat-curie-lhrxvg`)는 Stage 0 스케줄러가 실행 중에 코드를 import하므로
+건드리지 않는다. Stage 1+2는 별도 폴더에 clone해서 돌린다. 같은 `OUTPUT_ROOT`를 쓰지만 Stage 0 run 폴더
+(`cub/{teacher,ce,kd,lrsel}`, `cub/lr_selection.json`)는 읽기만 한다. 새 결과는 아래 경로에만 쓴다.
+
+```bash
+cd ~ && git clone -b stage12 https://github.com/jeehoo0507/aim-lab-test-5 aim-lab-stage12 && cd aim-lab-stage12
+source $HOME/.local/bin/env && uv sync
+export DATA_ROOT=$HOME/stage0/data OUTPUT_ROOT=$HOME/stage0/outputs HF_HOME=$HOME/stage0/hf GPUS=0
+# Stage 0이 끝났는지 먼저 확인 (results/stage0_summary.md 존재, ~/aim-lab-test-5 기준)
+ls ~/aim-lab-test-5/results/stage0_summary.md
+setsid nohup bash -c 'uv run python -m stage0.make_attribution_cache --dataset cub && uv run python -m stage0.fidelity --dataset cub && ./run_stage0.sh --stage 2 --datasets cub' > $HOME/stage12.log 2>&1 < /dev/null &
+tail -f $HOME/stage12.log            # Ctrl+C는 보기만 멈춤
+OUTPUT_ROOT=$OUTPUT_ROOT ./status.sh --stage 2
+```
+- Stage 1(캐시 + fidelity)은 30분 안쪽, Stage 2(18 run + 평가)는 A5000 1장 기준 3시간 정도 예상.
+- 같은 명령을 다시 치면 끝난 것은 건너뛴다 (캐시 manifest, run별 `DONE`/`eval.json`).
+- 일부만: `./run_stage0.sh --stage 2 --datasets cub --criteria maskedkd --keeps 0.3 --seeds 0 1`
+- 학습 중간 체크포인트로 fidelity 다시 재기:
+  `uv run python -m stage0.fidelity --dataset cub --student-ckpt $OUTPUT_ROOT/cub/maskedkd_k0.3/seed0/ckpt_e10.pt --out-name stage1_fidelity_mkd03_e10`
+- 서버에서 smoke: `GPUS=0 DATA_ROOT=... ./smoke_test_stage12.sh` (toy-scale 출력은 `smoke/run12/` 아래에만 쓴다)
+
+| 파일 | 내용 |
+|---|---|
+| `stage0/models.py: teacher_forward(teacher, images, keep_idx=None)` | `_pos_embed` 뒤에서 cls + 고른 patch 토큰만 남김 (MaskedKD와 같은 위치). `None`이면 Stage 0과 동일 |
+| `stage0/attention.py` | attn 모듈 forward hook으로 attention 재계산 (fused SDPA라 밖으로 안 나옴). 필요할 때만 hook 등록 |
+| `stage0/masking.py` | 기준: maskedkd, random(전용 generator), rollout, teacher_cache, teacher_oracle |
+| `stage0/attribution.py`, `make_attribution_cache.py` | teacher attribution 캐시(`cub/attribution_cache/`, train split 전체, 원본 전체 224 리사이즈) + RRC 박스/flip 좌표 변환 |
+| `stage0/fidelity.py` | Stage 1 → `results/stage1_fidelity.{csv,md,png}` |
+| `stage0/train.py --mode maskedkd --mask-criterion {maskedkd,random} --keep K` | Stage 2 → `cub/{criterion}_k{keep}/seed{s}/` (+ `ckpt_e{10,30,60}.pt`, log.csv `mask_agree`) |
+| `stage0/scheduler.py --stage 2` | 18 run + 평가 + `results/stage2_summary.md`. 상태는 `$OUTPUT_ROOT/_scheduler_stage2/` (Stage 0 상태와 분리) |
+| `stage0/summarize_stage2.py` | 표 + 여유 구간 판정 (사전 고정: Full KD 대비 maskedkd 평균 −0.5%p 이상 하락하는 가장 큰 비율) |
+
+attribution 캐시 → 크롭 변환의 한계: RandAugment의 기하 변환(회전·전단·평행이동), random erasing, mixup/cutmix는
+반영하지 않는다. 14×14 원본 맵을 크롭 박스로 bilinear 리샘플링하므로 작은 크롭에서는 해상도가 낮다. 이 근사의 오차는
+Stage 1에서 `teacher_cache` vs `teacher_oracle`(같은 view에서 teacher를 직접 돌린 attribution)의 fidelity 차이와
+top-k 겹침 비율(`oracle_overlap`)로 잰다.
+
+GFLOPs는 `FlopCounterMode` 실측값을 DeiT/MaskedKD 논문 관례(곱셈-덧셈 1회 = 1 FLOP, DeiT-B 17.6 G)로 보고한다
+(카운터 값 ÷ 2). keep 0.5 → 8.70 / 17.56 = 0.50.

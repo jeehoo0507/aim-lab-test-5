@@ -18,6 +18,7 @@ dependencies = [
     "scipy>=1.11",
     "opencv-python-headless>=4.8",
     "pandas>=2.0",
+    "matplotlib>=3.8",  # Stage 1 fidelity plot
 ]
 
 [tool.uv]

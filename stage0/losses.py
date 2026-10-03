@@ -56,7 +56,7 @@ class Stage0Loss(torch.nn.Module):
 
     def forward(self, student_logits, target, teacher_logits=None):
         base = self.base(student_logits, target)
-        if self.mode != "kd":
+        if self.mode not in C.KD_MODES:
             assert teacher_logits is None
             return base, base, None
         kd = soft_kd_loss(student_logits, teacher_logits, self.tau)

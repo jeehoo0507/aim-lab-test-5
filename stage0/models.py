@@ -32,20 +32,35 @@ def load_finetuned_teacher(ckpt_path, device):
 
 
 @torch.no_grad()
-def teacher_forward(teacher, images):
-    """Teacher logits for KD. Full input (all 196 patch tokens) in Stage 0.
+def teacher_forward(teacher, images, keep_idx=None):
+    """Teacher logits for KD.
 
-    Spelled out step by step (same ops as timm VisionTransformer.forward) so that a later stage can
-    insert patch-token selection between the positional embedding and the transformer blocks, as
-    MaskedKD does (models_teacher.py:261-266): keep cls token + gather the chosen patch tokens.
-    The caller must have put the teacher in eval() mode; inputs are the student's (mixed) batch.
+    keep_idx: None -> all 196 patch tokens (Stage 0 full KD, unchanged). Otherwise a (B, k) long tensor of
+    patch-token indices in 0..195: after the positional embedding only the cls token and those patch tokens
+    are kept, exactly where MaskedKD gathers them (models_teacher.py:261-266). Token order does not matter
+    (positions are already encoded). The caller must have put the teacher in eval() mode.
     """
     assert not teacher.training, "teacher must be in eval() mode during KD"
     x = teacher.patch_embed(images)
     x = teacher._pos_embed(x)          # prepend cls token, add pos embed -> (B, 1 + 196, D)
-    # --- token selection goes here in later stages (x = x[:, [0] + keep]) ---
+    if keep_idx is not None:
+        assert teacher.num_prefix_tokens == 1, "token selection assumes a single cls token (DeiT, no registers)"
+        assert keep_idx.dim() == 2 and keep_idx.shape[0] == x.shape[0], tuple(keep_idx.shape)
+        patches = x[:, 1:]
+        idx = keep_idx.to(device=x.device, dtype=torch.long).unsqueeze(-1).expand(-1, -1, x.shape[-1])
+        x = torch.cat([x[:, :1], torch.gather(patches, 1, idx)], dim=1)
     x = teacher.patch_drop(x)
     x = teacher.norm_pre(x)
     x = teacher.blocks(x)
     x = teacher.norm(x)
     return teacher.forward_head(x)
+
+
+def load_student_weights(path, device):
+    """Student from a Stage 0/2 run checkpoint: last.pt ({'model', 'config', ...}) or ckpt_e*.pt (state dict)."""
+    ck = torch.load(path, map_location="cpu", weights_only=False)
+    state = ck["model"] if isinstance(ck, dict) and "model" in ck else ck
+    num_classes = state["head.weight"].shape[0]
+    student = create_student(num_classes, pretrained=False)
+    student.load_state_dict(state)
+    return student.to(device).eval()

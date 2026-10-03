@@ -27,9 +27,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--output-root")
     ap.add_argument("--all", action="store_true", help="also list finished jobs")
+    ap.add_argument("--stage", type=int, choices=(0, 2), default=0, help="which launch to show")
     args = ap.parse_args(argv)
     out_root = C.output_root(args.output_root)
-    sp = out_root / "_scheduler" / "state.json"
+    sp = out_root / ("_scheduler_stage2" if args.stage == 2 else "_scheduler") / "state.json"
     if not sp.exists():
         print(f"no scheduler state at {sp} (run_stage0.sh not started yet?)")
         return

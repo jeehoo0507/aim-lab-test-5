@@ -40,15 +40,23 @@ class TensorBatches:
         return len(self.loader)
 
     def __iter__(self):
-        for x, y, g in self.loader:
-            yield torch.from_numpy(x), torch.from_numpy(y), torch.from_numpy(g)
+        for batch in self.loader:
+            yield tuple(torch.from_numpy(a) for a in batch)
 
 
-def make_loader(ds, batch_size, num_workers, **kw):
+def numpy_collate_box(batch):
+    """numpy_collate for datasets whose transform returns (image, box): yields x, y, g, box."""
+    xs, ys, gs = zip(*batch)
+    x = np.stack([t[0].numpy() for t in xs])
+    box = np.stack([np.asarray(t[1], dtype=np.float32) for t in xs])
+    return x, np.asarray(ys, dtype=np.int64), np.asarray(gs, dtype=np.int64), box
+
+
+def make_loader(ds, batch_size, num_workers, collate_fn=numpy_collate, **kw):
     if "batch_sampler" not in kw:
         kw["batch_size"] = batch_size
     return TensorBatches(torch.utils.data.DataLoader(
-        ds, num_workers=num_workers, pin_memory=False, collate_fn=numpy_collate,
+        ds, num_workers=num_workers, pin_memory=False, collate_fn=collate_fn,
         worker_init_fn=C.worker_init_fn, persistent_workers=False, **kw))
 
 

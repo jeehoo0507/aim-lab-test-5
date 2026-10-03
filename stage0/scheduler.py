@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from stage0 import common as C
+from stage0.masking import TRAIN_CRITERIA
 
 PY = [sys.executable, "-m"]
 
@@ -52,6 +53,46 @@ class Job:
 
 def lr_of(out_root, ds, which):
     return C.load_json(Path(out_root) / ds / "lr_selection.json")[which]["lr"]
+
+
+def build_stage2_jobs(a, out_root, data_root):
+    """Stage 2: maskedkd-mode student runs (criterion x keep x seed) + their eval + stage-2 summary.
+    Needs the finished Stage 0 teacher and student lr selection (read only); refuses otherwise."""
+    ds_list = a.datasets
+    tr_extra, ev_extra = shlex.split(a.train_args), shlex.split(a.eval_args)
+    co_extra = shlex.split(a.corruption_args)
+    cache_root = C.corruption_root(data_root)
+    jobs = []
+    for ds in ds_list:
+        tdir = C.teacher_dir(out_root, ds)
+        sel = Path(out_root) / ds / "lr_selection.json"
+        if not (tdir / "DONE").exists():
+            sys.exit(f"[error] Stage 2 needs the finished Stage 0 teacher {tdir} (no DONE). Run Stage 0 first.")
+        if not sel.exists() or "student" not in C.load_json(sel):
+            sys.exit(f"[error] Stage 2 needs the Stage 0 student lr selection {sel}. Run Stage 0 first.")
+        lr = C.load_json(sel)["student"]["lr"]
+        jobs.append(Job(f"{ds}/corruptions", "cpu",
+                        PY + ["stage0.make_corruptions", "--datasets", ds, "--workers", str(a.corruption_workers)]
+                        + co_extra, lambda ds=ds: (cache_root / ds / "DONE").exists(), [], 10))
+        for crit in a.criteria:
+            for keep in a.keeps:
+                md = C.mask_dirname(crit, keep)
+                for seed in a.seeds:
+                    rd = C.run_dir(out_root, ds, C.MASK_MODE, seed, subdir=md)
+                    name = f"{ds}/{md}/seed{seed}"
+                    jobs.append(Job(name, "gpu",
+                                    PY + ["stage0.train", "--mode", C.MASK_MODE, "--mask-criterion", crit,
+                                          "--keep", f"{keep:g}", "--dataset", ds, "--seed", str(seed),
+                                          "--lr", f"{lr:g}"] + tr_extra,
+                                    lambda rd=rd: (rd / "DONE").exists(), [], 70, rd, "FAILED"))
+                    jobs.append(Job(f"{ds}/eval/{md}/seed{seed}", "gpu",
+                                    PY + ["stage0.evaluate", "--dataset", ds, "--mode", md, "--seed", str(seed)]
+                                    + ev_extra, lambda rd=rd: (rd / "eval.json").exists(),
+                                    [name, f"{ds}/corruptions"], 30, rd, "FAILED.eval"))
+    summary = Path(os.environ.get("RESULTS_DIR", "results")) / "stage2_summary.md"
+    jobs.append(Job("summarize_stage2", "final", PY + ["stage0.summarize_stage2", "--datasets", *ds_list],
+                    lambda: summary.exists(), [], 0))
+    return jobs
 
 
 def build_jobs(a, out_root, data_root):
@@ -130,7 +171,7 @@ def build_jobs(a, out_root, data_root):
 
 
 class Scheduler:
-    def __init__(self, jobs, gpus, slots, teacher_slots, out_root, max_cpu_jobs, poll):
+    def __init__(self, jobs, gpus, slots, teacher_slots, out_root, max_cpu_jobs, poll, sched_name="_scheduler"):
         self.jobs = {j.name: j for j in jobs}
         self.gpus, self.slots = gpus, slots
         self.teacher_slots = max(1, min(teacher_slots, slots))
@@ -138,7 +179,7 @@ class Scheduler:
         self.teacher_on = {g: 0 for g in gpus}
         self.reserved = {}
         self.out_root = Path(out_root)
-        self.sched_dir = self.out_root / "_scheduler"
+        self.sched_dir = self.out_root / sched_name   # Stage 2 uses its own: never clobbers a running Stage 0
         (self.sched_dir / "logs").mkdir(parents=True, exist_ok=True)
         self.max_cpu_jobs, self.poll = max_cpu_jobs, poll
         self.env_base = dict(os.environ, STAGE0_CONCURRENT_RUNS=str(len(gpus) * slots), PYTHONUNBUFFERED="1")
@@ -314,6 +355,12 @@ def main(argv=None):
     ap.add_argument("--max-cpu-jobs", type=int, default=1)
     ap.add_argument("--fallback-alpha1", action="store_true", help="also run KD alpha=1.0 x 3 seeds (5절 fallback)")
     ap.add_argument("--poll", type=float, default=5.0)
+    ap.add_argument("--stage", type=int, choices=(0, 2), default=0,
+                    help="0 = Stage 0 pipeline (default); 2 = MaskedKD / random baselines (needs Stage 0 done)")
+    ap.add_argument("--criteria", nargs="+", default=list(TRAIN_CRITERIA), choices=TRAIN_CRITERIA,
+                    help="[stage 2] token-selection criteria")
+    ap.add_argument("--keeps", type=float, nargs="+", default=list(C.MASK_KEEPS), help="[stage 2] keep ratios")
+    ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2], help="[stage 2] seeds")
     ap.add_argument("--train-args", default="", help="extra args for every train.py call (smoke test)")
     ap.add_argument("--eval-args", default="")
     ap.add_argument("--diag-args", default="")
@@ -336,8 +383,11 @@ def main(argv=None):
             slots = 1
     slots = max(1, slots)
     teacher_slots = a.teacher_slots or pf.get("teacher_slot_cost") or slots
-    jobs = build_jobs(a, out_root, data_root)
-    sys.exit(Scheduler(jobs, gpus, slots, teacher_slots, out_root, a.max_cpu_jobs, a.poll).run())
+    if a.stage == 2:
+        jobs, sched_name = build_stage2_jobs(a, out_root, data_root), "_scheduler_stage2"
+    else:
+        jobs, sched_name = build_jobs(a, out_root, data_root), "_scheduler"
+    sys.exit(Scheduler(jobs, gpus, slots, teacher_slots, out_root, a.max_cpu_jobs, a.poll, sched_name).run())
 
 
 if __name__ == "__main__":
