@@ -56,6 +56,21 @@ def teacher_forward(teacher, images, keep_idx=None):
     return teacher.forward_head(x)
 
 
+@torch.no_grad()
+def teacher_forward_buckets(teacher, images, buckets):
+    """Variable token budget without padding: one teacher_forward per bucket [(rows, keep_idx), ...],
+    logits scattered back to the original row order. ViTs have no batch-coupled layers, so each image's
+    logits equal its standalone forward."""
+    out = None
+    for rows, idx in buckets:
+        rows = rows.to(images.device)
+        logits = teacher_forward(teacher, images[rows], idx)
+        if out is None:
+            out = logits.new_empty((images.shape[0], logits.shape[1]))
+        out[rows] = logits
+    return out
+
+
 def load_student_weights(path, device):
     """Student from a Stage 0/2 run checkpoint: last.pt ({'model', 'config', ...}) or ckpt_e*.pt (state dict)."""
     ck = torch.load(path, map_location="cpu", weights_only=False)

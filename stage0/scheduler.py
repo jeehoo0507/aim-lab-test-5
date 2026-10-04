@@ -27,7 +27,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from stage0 import common as C
-from stage0.masking import TRAIN_CRITERIA
+from stage0.attribution import cache_dir as attribution_cache_dir
+from stage0.masking import STAGE2_CRITERIA, TAM_CACHE_CRITERIA, TRAIN_CRITERIA
 
 PY = [sys.executable, "-m"]
 
@@ -74,6 +75,14 @@ def build_stage2_jobs(a, out_root, data_root):
         jobs.append(Job(f"{ds}/corruptions", "cpu",
                         PY + ["stage0.make_corruptions", "--datasets", ds, "--workers", str(a.corruption_workers)]
                         + co_extra, lambda ds=ds: (cache_root / ds / "DONE").exists(), [], 10))
+        attr_job = f"{ds}/attribution_cache"
+        if any(c in TAM_CACHE_CRITERIA for c in a.criteria):   # tam / tam_var read the attribution cache
+            adir = attribution_cache_dir(out_root, ds)
+            tuid = C.load_json(tdir / "config.json")["run_uid"]
+            jobs.append(Job(attr_job, "gpu", PY + ["stage0.make_attribution_cache", "--dataset", ds]
+                            + shlex.split(a.attribution_args),
+                            lambda adir=adir, tuid=tuid: (adir / "DONE").exists()
+                            and C.load_json(adir / "manifest.json")["teacher_run_uid"] == tuid, [], 95))
         for crit in a.criteria:
             for keep in a.keeps:
                 md = C.mask_dirname(crit, keep)
@@ -84,13 +93,19 @@ def build_stage2_jobs(a, out_root, data_root):
                                     PY + ["stage0.train", "--mode", C.MASK_MODE, "--mask-criterion", crit,
                                           "--keep", f"{keep:g}", "--dataset", ds, "--seed", str(seed),
                                           "--lr", f"{lr:g}"] + tr_extra,
-                                    lambda rd=rd: (rd / "DONE").exists(), [], 70, rd, "FAILED"))
+                                    lambda rd=rd: (rd / "DONE").exists(),
+                                    [attr_job] if crit in TAM_CACHE_CRITERIA else [],
+                                    60 if crit == "tam_oracle" else 70,   # slowest run starts last
+                                    rd, "FAILED"))
                     jobs.append(Job(f"{ds}/eval/{md}/seed{seed}", "gpu",
                                     PY + ["stage0.evaluate", "--dataset", ds, "--mode", md, "--seed", str(seed)]
                                     + ev_extra, lambda rd=rd: (rd / "eval.json").exists(),
                                     [name, f"{ds}/corruptions"], 30, rd, "FAILED.eval"))
     summary = Path(os.environ.get("RESULTS_DIR", "results")) / "stage2_summary.md"
-    jobs.append(Job("summarize_stage2", "final", PY + ["stage0.summarize_stage2", "--datasets", *ds_list],
+    # default keeps + requested ones, so a later partial launch (e.g. --keeps 0.15) does not shrink the table
+    summary_keeps = sorted(set(C.MASK_KEEPS) | set(a.keeps), reverse=True)
+    jobs.append(Job("summarize_stage2", "final", PY + ["stage0.summarize_stage2", "--datasets", *ds_list,
+                                                        "--keeps", *[f"{k:g}" for k in summary_keeps]],
                     lambda: summary.exists(), [], 0))
     return jobs
 
@@ -357,7 +372,7 @@ def main(argv=None):
     ap.add_argument("--poll", type=float, default=5.0)
     ap.add_argument("--stage", type=int, choices=(0, 2), default=0,
                     help="0 = Stage 0 pipeline (default); 2 = MaskedKD / random baselines (needs Stage 0 done)")
-    ap.add_argument("--criteria", nargs="+", default=list(TRAIN_CRITERIA), choices=TRAIN_CRITERIA,
+    ap.add_argument("--criteria", nargs="+", default=list(STAGE2_CRITERIA), choices=TRAIN_CRITERIA,
                     help="[stage 2] token-selection criteria")
     ap.add_argument("--keeps", type=float, nargs="+", default=list(C.MASK_KEEPS), help="[stage 2] keep ratios")
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2], help="[stage 2] seeds")
@@ -365,6 +380,7 @@ def main(argv=None):
     ap.add_argument("--eval-args", default="")
     ap.add_argument("--diag-args", default="")
     ap.add_argument("--corruption-args", default="")
+    ap.add_argument("--attribution-args", default="", help="[stage 2, tam] extra make_attribution_cache args")
     ap.add_argument("--output-root")
     ap.add_argument("--data-root")
     a = ap.parse_args(argv)

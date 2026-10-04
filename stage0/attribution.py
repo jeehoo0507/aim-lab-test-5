@@ -84,3 +84,27 @@ def box_for_center_crop(W, H):
     s = C.RESIZE_SIZE / min(W, H)
     side = C.IMG_SIZE / s
     return [(H - side) / 2, (W - side) / 2, side, side, 0.0, W, H]
+
+
+@torch.no_grad()
+def teacher_attribution(teacher, x, kind, amp_ctx_fn=None, chunk=None):
+    """(B, 196) teacher attribution of a full teacher forward on x (the current view): kind attn_last (last-block
+    CLS->patch attention, head mean) or rollout. Same quantity as the cache / Stage 1 teacher_oracle, computed on
+    the given view. chunk: run in pieces of this many images (memory)."""
+    from contextlib import nullcontext
+
+    from stage0.attention import AttentionRecorder
+    from stage0.models import teacher_forward
+    need = ("cls_last",) if kind == "attn_last" else ("rollout",)
+    outs = []
+    for xs in (x.split(chunk) if chunk else [x]):
+        with AttentionRecorder(teacher, need=need) as rec, (amp_ctx_fn() if amp_ctx_fn else nullcontext()):
+            teacher_forward(teacher, xs)
+        outs.append(rec.cls_last if kind == "attn_last" else rec.rollout)
+    return torch.cat(outs)
+
+
+def topk_overlap(a, b, k):
+    """Mean |top-k(a) ∩ top-k(b)| / k over rows."""
+    ia, ib = torch.topk(a.float(), k, dim=1).indices, torch.topk(b.float(), k, dim=1).indices
+    return ((ia.unsqueeze(2) == ib.unsqueeze(1)).any(2).float().sum(1) / k).mean().item()

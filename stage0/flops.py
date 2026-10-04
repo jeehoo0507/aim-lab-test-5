@@ -66,3 +66,23 @@ def criterion_gflops(criterion, num_classes=200):
                 teacher_forward(teacher, x)
         return count(oracle)
     raise ValueError(criterion)
+
+
+@torch.no_grad()
+def selection_gflops(criterion, kind="attn_last", num_classes=200):
+    """Per-image selection cost of a training criterion beyond the student / masked-teacher forwards."""
+    if criterion in ("maskedkd", "rollout", "random"):
+        return criterion_gflops(criterion, num_classes)
+    s_cost = criterion_gflops("maskedkd", num_classes)          # S = student last-block CLS attention (hook)
+    if criterion in ("tam", "tam_var"):
+        return s_cost                                           # + cache lookup / crop resample (no counted FLOPs)
+    if criterion == "tam_oracle":
+        teacher, _ = _models(num_classes)
+        x = torch.randn(1, 3, C.IMG_SIZE, C.IMG_SIZE)
+        need = ("cls_last",) if kind == "attn_last" else ("rollout",)
+
+        def oracle():
+            with AttentionRecorder(teacher, need=need):
+                teacher_forward(teacher, x)
+        return s_cost + count(oracle)
+    raise ValueError(criterion)

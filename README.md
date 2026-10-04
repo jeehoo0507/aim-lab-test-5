@@ -144,3 +144,76 @@ top-k 겹침 비율(`oracle_overlap`)로 잰다.
 
 GFLOPs는 `FlopCounterMode` 실측값을 DeiT/MaskedKD 논문 관례(곱셈-덧셈 1회 = 1 FLOP, DeiT-B 17.6 G)로 보고한다
 (카운터 값 ÷ 2). keep 0.5 → 8.70 / 17.56 = 0.50.
+
+---
+
+# Stage 3 pilot: TAM (Teachability-Aware Masking) vs MaskedKD — cv 서버 (브랜치 `stage3-pilot`)
+
+TAM이 MaskedKD보다 나은 방향인지 빠르게 확인한다 (결론은 "가능성 있음 / 낮음"까지만). TAM이 지면 원인이 **아이디어**인지
+**캐시의 부정확함**인지 가를 수 있게 `tam_oracle` 상한선 run과 캐시 진단을 함께 돌리고, 가장 강한 경쟁자인 student
+`rollout`도 학습 baseline으로 넣는다. 비교는 **cv 서버 안에서만** (cv의 `kd/seed{0,1}`와 같은 teacher). cv2의 Stage 2 결과와
+섞지 않는다 (teacher 체크포인트가 다름). Stage 0·2 폴더는 읽기만 한다.
+
+```bash
+cd ~ && git clone -b stage3-pilot https://github.com/jeehoo0507/aim-lab-test-5 aim-lab-stage3 && cd aim-lab-stage3
+source $HOME/.local/bin/env && uv sync
+export DATA_ROOT=$HOME/stage0/data OUTPUT_ROOT=$HOME/stage0/outputs HF_HOME=$HOME/stage0/hf GPUS=0
+setsid nohup bash -c 'uv run python -m stage0.make_attribution_cache --dataset cub && uv run python -m stage0.diagnose_cache --dataset cub && ./run_stage0.sh --stage 2 --datasets cub --criteria maskedkd rollout tam tam_var --keeps 0.3 0.15 --seeds 0 1 && ./run_stage0.sh --stage 2 --datasets cub --criteria tam_oracle --keeps 0.15 --seeds 0 1' > $HOME/stage3_pilot.log 2>&1 < /dev/null &
+tail -f $HOME/stage3_pilot.log
+OUTPUT_ROOT=$OUTPUT_ROOT ./status.sh --stage 2
+```
+- 18 run (maskedkd·rollout·tam·tam_var × keep 0.3·0.15 × seed 0·1 + tam_oracle × 0.15 × seed 0·1) + 평가. A5000 1장(5 슬롯) 기준
+  4시간 안팎. 이미 끝난 run(`DONE`)은 건너뛴다. 스케줄러는 `tam_oracle`을 가장 늦게 시작한다 (우선순위 최하).
+- 요약(`results/stage2_summary.md`)은 호출마다 끝난 run 전체로 다시 만들어진다 (두 번째 호출 뒤에 18 run 전부 포함).
+- 캐시가 다른 teacher로 만들어져 있으면 `make_attribution_cache`가 거부한다 (`--overwrite`로 다시 만든다).
+- 서버 smoke: `GPUS=0 DATA_ROOT=... ./smoke_test_stage3_pilot.sh` (출력은 `smoke/run3/` 아래)
+
+### 학습 기준 (`train.py --mode maskedkd --mask-criterion C --keep K` → `cub/{C}_k{K}/seed{s}/`)
+| 기준 | teacher 신호 T | 토큰 수 | 선택 비용 (GFLOPs/img, 실측) |
+|---|---|---|---|
+| `rollout` | – (student rollout 상위 k, Stage 1 `rollout`과 같은 인덱스) | k | 0.435 (전 블록 attention + rollout) |
+| `tam` | 캐시 → 현재 크롭·flip으로 변환 | k | 0.022 (S용 student hook) |
+| `tam_var` | 캐시 → 현재 크롭·flip으로 변환 | 버킷 k(1−δ)/k/k(1+δ), 평균 k | 0.022 |
+| `tam_oracle` | 현재 view(mixup 전)에서 teacher 전체 forward의 attn_last (진단용) | k | 17.93 (teacher forward 1회 추가) |
+
+TAM 선택 (`stage0/masking.py: tam_select, tam_buckets, TamSelector`). S = student 마지막 블록 CLS→patch attention
+(MaskedKD와 같은 신호, 학습 forward의 hook) — MaskedKD 대비 차이가 "teacher 신호를 섞은 효과"만 되도록.
+1. teacher 후보 풀 = `T` 상위 `m = min(196, 2k)`개 (나머지는 pruned)
+2. shared = 풀 안에서 `S` 상위 `round((1−g)k)`개
+3. gap = 풀의 나머지 중 `T` 상위 `k − k_shared`개
+4. `g(epoch) = g0 + (g1 − g0)·epoch/(epochs−1)`, 기본 0.1 → 0.5 (`--tam-gap g0 g1`). T 종류 기본 `attn_last` (`--tam-kind rollout`)
+
+`tam_var`: 크롭된 T를 합 1로 정규화한 상위 k개 질량(집중도)으로 micro-batch를 3등분 → 집중도 높은 1/3은 `k(1−δ)`, 낮은 1/3은
+`k(1+δ)`, 나머지(나머지 이미지 포함)는 `k` (δ=0.33; keep 0.3: 40/59/78, keep 0.15: 19/29/39; |mean_k − k| ≤ 1 assert). 패딩·mask
+없이 버킷마다 teacher를 따로 돌려 logit을 원래 순서로 합친다 (`models.teacher_forward_buckets`). 버킷 가중 평균 teacher GFLOPs는
+고정 k 대비 +0.1% 이내이며 에포치마다 log.csv `teacher_gflops`에 실측값을 남긴다.
+
+log.csv 추가 열: `tam_gap_ratio`, `mean_k`, `bucket_k`, `teacher_gflops` (tam 계열), `cache_oracle_overlap` (`tam`·`tam_var`:
+에포치마다 첫 micro-batch에서 같은 view의 teacher top-k와 캐시 top-k의 겹침). config 추가 키: `tam_gap`, `tam_kind`, `tam_budget`,
+`tam_delta`, `tam_teacher_signal` (cache/oracle), `selection_gflops` (rollout·tam 계열). 기존 `maskedkd`/`random`의 config·선택·
+학습 경로는 stage12와 비트 단위로 같다 (`tests/test_stage3.py`, smoke 5단계에서 stage12 worktree와 최종 가중치 비교).
+
+**한계:** tam/tam_var의 T는 mixup/cutmix **전** 원본 view의 크롭 박스로 변환한 캐시 기준이다 (캐시는 원본 이미지에 대해서만
+있음). mixup 상대 이미지·cutmix로 붙여진 영역, RandAugment 기하 변환, random erasing은 T에 반영되지 않는다 (S는 mixup 후 입력의
+student attention이라 반영됨). tam_oracle도 mixup 전 view에서 teacher를 돌린다.
+
+### 캐시 진단 (`stage0/diagnose_cache.py` → `results/stage3_cache_diag.{csv,md}`, 학습 없음)
+train 이미지마다 RRC view 4개(전용 RNG, seed 0, flip 포함, RandAugment 없음)에서 같은 view의 teacher attn_last(oracle)와 비교:
+`cache_vs_view`(tam이 쓰는 캐시 변환 맵), `whole_vs_view`(새로 계산한 전체 이미지 맵을 같은 크롭 변환 → 크롭 변환 자체의 한계;
+cache_vs_view와의 차이 = 캐시 저장 오차), `view_vs_view`(같은 view 두 번, 100%여야 함). 크롭 면적 구간 [0.08,0.2) [0.2,0.4)
+[0.4,0.7) [0.7,1.0]과 flip 여부별 top-k overlap(keep 0.3/0.15)과 Spearman. 결론 규칙(사전 고정, keep 0.3 cache_vs_view): 가장 큰
+구간 ≥ 70%이고 (큰 − 작은) ≥ 15%p → 해상도 문제(다중 스케일 캐시로 개선 여지), 가장 큰 구간 < 70% → 문맥 의존(캐시 방식의 한계),
+그 외 혼합. 개선 방법은 구현하지 않았다.
+
+### 파일럿 요약과 판단 (`summarize_stage2.py`, 사전 고정)
+표에 rollout·tam·tam_var·tam_oracle 행과 선택 비용 열(tam_oracle은 "진단용, 비용 비교 대상 아님"), 같은 seed 짝 차이
+(`tam/tam_var/tam_oracle − maskedkd`, `tam/tam_var − rollout`), tam_var 실측 GFLOPs, 학습 중 `cache_oracle_overlap`.
+"이긴다" = 짝 seed 모두(≥2) 높고 평균 +0.3%p 이상.
+
+| tam 또는 tam_var vs maskedkd | tam_oracle vs maskedkd (0.15) | 판단 |
+|---|---|---|
+| 이김 | – | 가능성 있음 → 본 실험(3 seed). rollout도 이기는지 함께 보고 (못 이기면 "rollout 대비 우위 없음") |
+| 못 이김 | 이김 | 아이디어는 유효, 캐시가 병목 → 캐시 진단 결과로 캐시 개선 후 재실험 |
+| 못 이김 | 못 이김 | 가능성 낮음 → 선택 규칙(풀 크기, g 스케줄) 재검토 |
+
+필요한 run의 짝 seed가 2개 미만이면 "미완료 — 판단 보류".

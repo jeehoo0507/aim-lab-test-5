@@ -122,6 +122,25 @@ class TrainTransformWithBox:
         return img, np.array([i, j, h, w, float(self.flip.last), W, H], dtype=np.float32)
 
 
+class WithIndex(torch.utils.data.Dataset):
+    """Wraps a Stage0Dataset whose transform returns (image, box); yields ((image, box, index), label,
+    group) so a training batch can look up per-image data (e.g. the attribution cache) by index.
+    Augmentation (and therefore the image) is exactly the wrapped dataset's."""
+
+    def __init__(self, ds):
+        self.ds, self.items = ds, ds.items
+
+    def set_aug_seed(self, seed):
+        self.ds.set_aug_seed(seed)
+
+    def __len__(self):
+        return len(self.ds)
+
+    def __getitem__(self, i):
+        (img, box), label, group = self.ds[i]
+        return (img, box, i), label, group
+
+
 def build_train_transform(return_box=False):
     """MaskedKD transforms_imagenet_train with its main.py defaults (transforms_factory.py:56-139).
 

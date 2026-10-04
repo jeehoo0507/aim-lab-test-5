@@ -52,6 +52,15 @@ def numpy_collate_box(batch):
     return x, np.asarray(ys, dtype=np.int64), np.asarray(gs, dtype=np.int64), box
 
 
+def numpy_collate_box_index(batch):
+    """numpy_collate for WithIndex datasets: yields x, y, g, box, index."""
+    xs, ys, gs = zip(*batch)
+    x = np.stack([t[0].numpy() for t in xs])
+    box = np.stack([np.asarray(t[1], dtype=np.float32) for t in xs])
+    idx = np.asarray([t[2] for t in xs], dtype=np.int64)
+    return x, np.asarray(ys, dtype=np.int64), np.asarray(gs, dtype=np.int64), box, idx
+
+
 def make_loader(ds, batch_size, num_workers, collate_fn=numpy_collate, **kw):
     if "batch_sampler" not in kw:
         kw["batch_size"] = batch_size
