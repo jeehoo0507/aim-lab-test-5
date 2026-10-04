@@ -41,6 +41,15 @@ from stage0.masking import num_keep
 from stage0.models import load_finetuned_teacher
 
 BINS = ((0.08, 0.2), (0.2, 0.4), (0.4, 0.7), (0.7, 1.0001))
+
+
+def area_bin(a):
+    """Bin index of a crop-area ratio. Integer crop sizes can land slightly outside RRC's scale range
+    (e.g. 0.0799 or 1.0 + eps), so values below / above the range go to the first / last bin."""
+    for j, (_lo, hi) in enumerate(BINS):
+        if a < hi:
+            return j
+    return len(BINS) - 1
 BIN_NAMES = ("[0.08,0.2)", "[0.2,0.4)", "[0.4,0.7)", "[0.7,1.0]")
 COMPARISONS = ("cache_vs_view", "whole_vs_view", "view_vs_view")
 
@@ -162,7 +171,7 @@ def main(argv=None):
             cand["view_vs_view"] = teacher_attribution(teacher, views, args.kind, amp, args.batch_size)
         area = (boxes[:, 2] * boxes[:, 3] / (boxes[:, 5] * boxes[:, 6])).cpu()
         flip = boxes[:, 4].cpu() > 0.5
-        bin_id = torch.tensor([next(j for j, (lo, hi) in enumerate(BINS) if lo <= a < hi) for a in area.tolist()])
+        bin_id = torch.tensor([area_bin(a) for a in area.tolist()])
         for comp, m in cand.items():
             sp = spearman(m, oracle).cpu()
             for keep, k in ks.items():
