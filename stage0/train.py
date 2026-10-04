@@ -53,7 +53,8 @@ from stage0.datasets import Stage0Dataset, WithIndex, build_eval_transform, buil
 from stage0.engine import accuracy, amp_ctx, get_device, make_loader, numpy_collate_box_index, predict
 from stage0.losses import Stage0Loss
 from stage0.masking import (TAM_CACHE_CRITERIA, TAM_CRITERIA, TAM_DELTA, TAM_GAP, TRAIN_CRITERIA,
-                            StudentMaskSelector, TamSelector, num_keep, tam_bucket_ks)
+                            RecordingMixup, StudentMaskSelector, TamSelector, mix_attribution, num_keep,
+                            tam_bucket_ks)
 from stage0.models import (create_student, create_teacher, load_finetuned_teacher, teacher_forward,
                            teacher_forward_buckets)
 
@@ -283,7 +284,8 @@ def train(args, rd, config, state):
     criterion = Stage0Loss(args.mode, alpha=args.alpha, tau=C.KD_TAU)
     mixup_fn = None
     if config["mixup"] > 0 or config["cutmix"] > 0:
-        mixup_fn = Mixup(mixup_alpha=config["mixup"], cutmix_alpha=config["cutmix"], prob=C.MIXUP_PROB,
+        mixup_cls = RecordingMixup if tam else Mixup   # tam: records lam / cutmix box (same RNG, same images)
+        mixup_fn = mixup_cls(mixup_alpha=config["mixup"], cutmix_alpha=config["cutmix"], prob=C.MIXUP_PROB,
                          switch_prob=C.MIXUP_SWITCH_PROB, mode=C.MIXUP_MODE,
                          label_smoothing=config["smoothing"], num_classes=config["num_classes"])
     assert (mixup_fn is None) == (args.mode == "teacher")
@@ -355,15 +357,17 @@ def train(args, rd, config, state):
                                    batch[3].to(device)).flatten(1)
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
-            if tam and not tam_cache:   # tam_oracle: teacher attribution on this (pre-mixup) view
-                T_attr = teacher_attribution(teacher, x, config["tam_kind"], lambda: amp_ctx(device, amp), micro)
-            elif tam_cache and step == 0:   # cache vs oracle top-k overlap, first micro-batch of the epoch
+            if tam_cache and step == 0:   # cache vs oracle top-k overlap, first micro-batch of the epoch
                 x_pre = x[:micro]
                 o = teacher_attribution(teacher, x_pre, config["tam_kind"], lambda: amp_ctx(device, amp))
                 overlap = topk_overlap(T_attr[:micro], o, num_keep(args.keep))
             target = y
             if mixup_fn is not None:
                 x, target = mixup_fn(x, y)
+            if tam_cache:   # cached maps of the two source views -> attribution of the mixed image
+                T_attr = mix_attribution(T_attr, mixup_fn.last)
+            elif tam:       # tam_oracle: teacher attribution on the mixed image the teacher actually sees
+                T_attr = teacher_attribution(teacher, x, config["tam_kind"], lambda: amp_ctx(device, amp), micro)
             if hash_log:
                 with open(hash_log, "a") as hf:
                     hf.write(f"{epoch} {step} {hashlib.sha1(x.cpu().numpy().tobytes()).hexdigest()} "

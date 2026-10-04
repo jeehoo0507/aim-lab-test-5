@@ -167,3 +167,60 @@ class TamSelector:
         if self.criterion in ("tam", "tam_oracle"):
             return tam_select(T, S, self.k, self.g)
         return [(rows, tam_select(T[rows], S[rows], kb, self.g)) for rows, kb in tam_buckets(T, self.k, self.delta)]
+
+
+# ---------------------------------------------------------------------- TAM under mixup / cutmix ---
+from timm.data import Mixup  # noqa: E402
+from timm.data.mixup import cutmix_bbox_and_lam  # noqa: E402
+
+
+class RecordingMixup(Mixup):
+    """timm Mixup (batch mode) that also records what it did in self.last = (lam, (yl, yh, xl, xh) or None).
+    _mix_batch is timm 1.0's code line for line, so the RNG draws and the mixed images are identical."""
+
+    last = (1.0, None)
+
+    def _mix_batch(self, x):
+        lam, use_cutmix = self._params_per_batch()
+        if lam == 1.:
+            self.last = (1.0, None)
+            return 1.
+        if use_cutmix:
+            (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
+                x.shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+            x[:, :, yl:yh, xl:xh] = x.flip(0)[:, :, yl:yh, xl:xh]
+            self.last = (float(lam), (int(yl), int(yh), int(xl), int(xh)))
+        else:
+            x_flipped = x.flip(0).mul_(1. - lam)
+            x.mul_(lam).add_(x_flipped)
+            self.last = (float(lam), None)
+        return lam
+
+    def __call__(self, x, target):
+        assert self.mode == "batch", "RecordingMixup only records batch mode"
+        return super().__call__(x, target)
+
+
+def mix_attribution(T, mix, img_size=224, patch=16):
+    """Teacher attribution of the MIXED batch from the per-view maps T (B, 196) of the unmixed views, following
+    timm batch mixup (partner of row i = row B-1-i). Rows are normalised to sum 1 first.
+      mixup : lam * T + (1 - lam) * T.flip(0)
+      cutmix: per patch cell, the area fraction f inside the pasted box takes the partner's map:
+              (1 - f) * T + f * T.flip(0)"""
+    lam, box = mix
+    T = T.float().clamp_min(0)
+    T = T / T.sum(1, keepdim=True).clamp_min(1e-12)
+    if lam == 1.0:
+        return T
+    Tf = T.flip(0)
+    if box is None:
+        return lam * T + (1 - lam) * Tf
+    yl, yh, xl, xh = box
+    g = img_size // patch
+    lo = torch.arange(g, dtype=torch.float32, device=T.device) * patch
+    fy = ((torch.minimum(lo + patch, torch.tensor(float(yh))) - torch.maximum(lo, torch.tensor(float(yl))))
+          .clamp_min(0) / patch)
+    fx = ((torch.minimum(lo + patch, torch.tensor(float(xh))) - torch.maximum(lo, torch.tensor(float(xl))))
+          .clamp_min(0) / patch)
+    f = (fy[:, None] * fx[None, :]).flatten()                                  # (196,)
+    return (1 - f) * T + f * Tf

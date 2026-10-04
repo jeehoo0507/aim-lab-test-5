@@ -281,7 +281,49 @@ def test_indexed_loader_same_images(data_root):
     assert [i for *_, idx in b for i in idx.tolist()] == order, "index must be the sampled dataset index"
 
 
+def test_recording_mixup_identical_and_mix_attribution():
+    """RecordingMixup = timm Mixup (same images, targets, RNG stream); mix_attribution follows the mix."""
+    import random
+
+    import numpy as np
+    from timm.data import Mixup
+
+    from stage0.masking import RecordingMixup, mix_attribution
+    kw = dict(mixup_alpha=0.8, cutmix_alpha=1.0, prob=C.MIXUP_PROB, switch_prob=C.MIXUP_SWITCH_PROB,
+              mode=C.MIXUP_MODE, label_smoothing=0.1, num_classes=10)
+    seen = set()
+    for seed in range(12):
+        x0 = torch.randn(6, 3, 224, 224)
+        y = torch.randint(0, 10, (6,))
+        outs = []
+        for cls in (Mixup, RecordingMixup):
+            random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
+            xa, ta = cls(**kw)(x0.clone(), y)
+            outs.append((xa, ta, np.random.rand(), torch.rand(1)))
+        assert torch.equal(outs[0][0], outs[1][0]) and torch.equal(outs[0][1], outs[1][1])
+        assert outs[0][2] == outs[1][2] and torch.equal(outs[0][3], outs[1][3]), "RNG stream changed"
+        random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
+        m = RecordingMixup(**kw)
+        m(x0.clone(), y)
+        seen.add("cutmix" if m.last[1] is not None else "mixup")
+    assert seen == {"cutmix", "mixup"}, seen
+    T = torch.rand(4, 196)
+    Tn = T / T.sum(1, keepdim=True)
+    assert torch.allclose(mix_attribution(T, (1.0, None)), Tn)
+    assert torch.allclose(mix_attribution(T, (0.7, None)), 0.7 * Tn + 0.3 * Tn.flip(0))
+    M = mix_attribution(T, (0.75, (0, 112, 0, 112)))           # box = top-left 7x7 cells exactly
+    inside = torch.zeros(14, 14, dtype=torch.bool)
+    inside[:7, :7] = True
+    inside = inside.flatten()
+    assert torch.allclose(M[:, inside], Tn.flip(0)[:, inside]) and torch.allclose(M[:, ~inside], Tn[:, ~inside])
+    M = mix_attribution(T, (0.9, (8, 24, 0, 16)))              # half of cell (0,0), half of cell (1,0)
+    assert torch.allclose(M[:, 0], 0.5 * Tn[:, 0] + 0.5 * Tn.flip(0)[:, 0])
+    assert torch.allclose(M[:, 14], 0.5 * Tn[:, 14] + 0.5 * Tn.flip(0)[:, 14])
+    assert torch.allclose(M[:, 1], Tn[:, 1])
+
+
 if __name__ == "__main__":
+    test_recording_mixup_identical_and_mix_attribution()
     test_existing_criteria_bit_identical()
     test_tam_select_properties()
     test_tam_buckets_and_forward()
