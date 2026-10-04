@@ -162,6 +162,23 @@ def ms(vals):
     return f"{statistics.mean(vals):.2f} ± {statistics.stdev(vals):.2f}" + ("" if len(vals) == 3 else f" (n={len(vals)})")
 
 
+def wga_section(kd, ce, runs, criteria, keeps):
+    """Worst-group accuracy table (Waterbirds), same layout as the clean table; paired by seed vs Full KD."""
+    kd_w = [e["wga"] for e in kd.values() if "wga" in e]
+    kd_m = statistics.mean(kd_w) if kd_w else None
+    md = ["### Worst-group accuracy (WGA)", "",
+          "| 기준 | 비율 | WGA (mean ± std) | Full KD 대비 | seed별 차이 (vs KD) |", "|---|---|---|---|---|",
+          f"| Full KD | 1.0 | {ms(kd_w)} | 0 | |"]
+    rows = [(c, k, runs[(c, k)]) for c in criteria for k in keeps if runs[(c, k)]] + [("CE", None, ce)]
+    for c, k, r in rows:
+        vals = [e["wga"] for e in r.values() if "wga" in e]
+        paired = {s: r[s]["wga"] - kd[s]["wga"] for s in SEEDS if s in r and s in kd and "wga" in r[s]}
+        d = f"{statistics.mean(vals) - kd_m:+.2f}" if vals and kd_m is not None else "–"
+        per = ", ".join(f"s{s} {v:+.2f}" for s, v in paired.items())
+        md.append(f"| {c} | {'–' if k is None else f'{k:g}'} | {ms(vals)} | {d} | {per} |")
+    return md + [""]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--datasets", nargs="+", default=["cub"], choices=C.DATASETS)
@@ -233,6 +250,8 @@ def main(argv=None):
                                             if per else "–"))
         md.append("")
 
+        if any("wga" in e for e in kd.values()):   # Waterbirds: worst-group accuracy (eval.json "wga")
+            md += wga_section(kd, ce, runs, criteria, keeps)
         if pilot:
             md += pilot_section(out_root, ds, name, runs, keeps, pilot)
         md += ["### 여유 구간 판정 (사전 고정: Full KD 대비 maskedkd 평균 −0.5%p 이상 하락하는 가장 큰 비율)", ""]
