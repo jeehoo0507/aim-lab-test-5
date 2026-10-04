@@ -33,7 +33,7 @@
 
 학습 loss에 남긴 토큰 위치의 특징 증류 항을 추가한다. teacher는 이미 남긴 토큰만 계산하므로 **teacher 비용은 그대로**다.
 - teacher: `teacher_forward(teacher, x, keep_idx)`가 마지막 블록(norm 적용 후) patch 특징 h_t (B, k, 768)도 반환하도록 옵션 추가.
-- student: 같은 forward에서 마지막 블록 patch 특징 h_s (B, 196, 384) → keep_idx 위치만 gather → 학습용 선형 사상 P: 384→768 (student와 함께 학습, 평가에는 안 씀).
+- student: 같은 forward에서 마지막 블록 patch 특징 h_s (B, 196, 192; DeiT-Tiny) → keep_idx 위치만 gather → 학습용 선형 사상 P: 192→768 (student와 함께 학습, 평가에는 안 씀).
 - L_tok = Σ_i w_i · (1 − cos(P(h_s,i), h_t,i)) / Σ_i w_i, i ∈ 남긴 토큰.
   - w_i = 1 (shared 또는 일반 선택), **gap 토큰은 w_gap** (기본 2.0).
 - 전체 loss = Stage0Loss(CE + KD, α=0.5, τ=1) + β · L_tok, 기본 **β = 1.0**. 인자 `--tok-beta`, `--tok-gap-weight`.
