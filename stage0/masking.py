@@ -14,7 +14,7 @@
   tam_oracle     tam with T from a full teacher forward on the current (pre-mixup) view instead of the cache
                  (diagnostic upper bound; costs more than full KD).
 Training criteria (Stage 2 / 3 pilot): maskedkd, random, rollout (student rollout, Stage 1 criterion), tam,
-tam_var, tam_oracle.
+tam_var, tam_oracle, tam_r (tam with S = student attention rollout instead of the last-block CLS attention).
 """
 import torch
 
@@ -22,11 +22,11 @@ from stage0.attention import AttentionRecorder
 
 NUM_PATCHES = 196
 CRITERIA = ("maskedkd", "random", "rollout", "teacher_cache", "teacher_oracle")
-TRAIN_CRITERIA = ("maskedkd", "random", "rollout", "tam", "tam_var", "tam_oracle")   # Stage 2 + Stage 3 pilot
+TRAIN_CRITERIA = ("maskedkd", "random", "rollout", "tam", "tam_var", "tam_oracle", "tam_r")   # Stage 2 + Stage 3 pilot
 STAGE2_CRITERIA = ("maskedkd", "random")            # default of `scheduler --stage 2` (unchanged)
 STUDENT_CRITERIA = ("maskedkd", "random", "rollout")  # StudentMaskSelector
-TAM_CRITERIA = ("tam", "tam_var", "tam_oracle")
-TAM_CACHE_CRITERIA = ("tam", "tam_var")             # T from the attribution cache (tam_oracle: from the teacher)
+TAM_CRITERIA = ("tam", "tam_var", "tam_oracle", "tam_r")
+TAM_CACHE_CRITERIA = ("tam", "tam_var", "tam_r")           # T from the attribution cache (tam_oracle: from the teacher)
 TAM_GAP = (0.1, 0.5)      # g0 -> g1 linearly over training
 TAM_DELTA = 0.33
 
@@ -147,7 +147,8 @@ class TamSelector:
         self.g0, self.g1 = gap
         self.delta = delta
         self.g = self.g0
-        self.recorder = AttentionRecorder(student, need=("cls_last",))
+        self.s_kind = "rollout" if criterion == "tam_r" else "cls_last"   # tam_r: S = student rollout
+        self.recorder = AttentionRecorder(student, need=(self.s_kind,))
 
     def set_epoch(self, epoch, epochs):
         self.g = tam_gap_ratio(epoch, epochs, self.g0, self.g1)
@@ -160,11 +161,11 @@ class TamSelector:
         self.recorder.__exit__(*exc)
 
     def select(self, batch, T):
-        S = self.recorder.cls_last
+        S = getattr(self.recorder, self.s_kind)
         assert S is not None and S.shape[0] == batch == T.shape[0], "student forward must run before select()"
-        self.recorder.cls_last = None
+        setattr(self.recorder, self.s_kind, None)
         T = T.to(S.device)
-        if self.criterion in ("tam", "tam_oracle"):
+        if self.criterion in ("tam", "tam_oracle", "tam_r"):
             return tam_select(T, S, self.k, self.g)
         return [(rows, tam_select(T[rows], S[rows], kb, self.g)) for rows, kb in tam_buckets(T, self.k, self.delta)]
 

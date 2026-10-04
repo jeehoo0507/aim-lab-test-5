@@ -135,6 +135,16 @@ def test_tam_selector_uses_student_hook():
         S = ref.recorder.cls_last.clone()
     assert torch.equal(out, out2), "selector hooks must not change the training forward"
     assert torch.equal(idx, tam_select(T, S, 59, 0.0))
+    with TamSelector("tam_r", 0.3, s, gap=(0.0, 0.0)) as sel:            # tam_r: S = student rollout
+        torch.manual_seed(1)
+        out3 = s(x)
+        idx_r = sel.select(6, T)
+    with StudentMaskSelector("rollout", 0.3, s) as ref:
+        torch.manual_seed(1)
+        s(x)
+        R = ref.recorder.rollout.clone()
+    assert torch.equal(out, out3), "tam_r hooks must not change the training forward"
+    assert torch.equal(idx_r, tam_select(T, R, 59, 0.0))
     with TamSelector("tam_var", 0.3, s) as sel:
         s(x)
         b = sel.select(6, T)

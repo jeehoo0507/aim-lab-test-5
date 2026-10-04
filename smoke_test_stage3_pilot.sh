@@ -69,20 +69,20 @@ echo "  ok   stage3_cache_diag.{csv,md}: same-view oracle overlap 100%, conclusi
 
 echo; echo "################ 3. Stage 2 scheduler: pilot criteria (two calls, seeds 0 1) ################"
 uv run python -m stage0.scheduler --stage 2 --gpus "$GPUS" --runs-per-gpu 3 --poll 1 --datasets cub \
-  --criteria maskedkd rollout tam tam_var --keeps 0.3 --seeds 0 1 --train-args "$TRAIN_ARGS" --eval-args "--limit 64" \
+  --criteria maskedkd rollout tam tam_var tam_r --keeps 0.3 --seeds 0 1 --train-args "$TRAIN_ARGS" --eval-args "--limit 64" \
   --attribution-args "--limit 64 --batch-size 16"
 uv run python -m stage0.scheduler --stage 2 --gpus "$GPUS" --runs-per-gpu 3 --poll 1 --datasets cub \
   --criteria maskedkd tam_oracle --keeps 0.15 --seeds 0 1 --train-args "$TRAIN_ARGS" --eval-args "--limit 64"
-for c in maskedkd_k0.3 rollout_k0.3 tam_k0.3 tam_var_k0.3 maskedkd_k0.15 tam_oracle_k0.15; do for s in 0 1; do
+for c in maskedkd_k0.3 rollout_k0.3 tam_k0.3 tam_var_k0.3 tam_r_k0.3 maskedkd_k0.15 tam_oracle_k0.15; do for s in 0 1; do
   test -f "$OUTPUT_ROOT/cub/$c/seed$s/DONE" && test -f "$OUTPUT_ROOT/cub/$c/seed$s/eval.json"
 done; done
-echo "  ok   12 runs DONE + eval.json"
+echo "  ok   14 runs DONE + eval.json"
 uv run python - <<PY
 import csv, json
 out = "$OUTPUT_ROOT/cub"
 def last(rd):
     return list(csv.DictReader(open(f"{rd}/log.csv")))[-1]
-for c, keep, k in (("tam", 0.3, 59), ("tam_var", 0.3, 59), ("tam_oracle", 0.15, 29)):
+for c, keep, k in (("tam", 0.3, 59), ("tam_var", 0.3, 59), ("tam_r", 0.3, 59), ("tam_oracle", 0.15, 29)):
     for s in (0, 1):
         rd = f"{out}/{c}_k{keep:g}/seed{s}"
         cfg = json.load(open(f"{rd}/config.json"))

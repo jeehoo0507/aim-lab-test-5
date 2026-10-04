@@ -32,7 +32,7 @@ from stage0.masking import STAGE2_CRITERIA, TAM_CACHE_CRITERIA, TRAIN_CRITERIA, 
 SEEDS = (0, 1, 2)
 LIMIT_DROP = 0.5
 PILOT_GAIN = 0.3
-PILOT_CRITERIA = ("rollout", "tam", "tam_var", "tam_oracle")
+PILOT_CRITERIA = ("rollout", "tam", "tam_var", "tam_oracle", "tam_r")
 
 
 def paired(a, b):
@@ -64,7 +64,7 @@ def overlap_by_epoch(out_root, ds, dirname):
 def pilot_section(out_root, ds, name, runs, keeps, pilot):
     md = ["### Stage 3 pilot: 같은 seed 짝 차이", ""]
     pairs = [("tam", "maskedkd"), ("tam_var", "maskedkd"), ("tam_oracle", "maskedkd"), ("tam", "rollout"),
-             ("tam_var", "rollout")]
+             ("tam_var", "rollout"), ("tam_r", "maskedkd"), ("tam_r", "rollout"), ("tam_r", "tam")]
     for a, b in pairs:
         if a not in pilot or (b != "maskedkd" and b not in pilot):
             continue
@@ -95,7 +95,7 @@ def pilot_section(out_root, ds, name, runs, keeps, pilot):
 
     # verdict
     win, incomplete = [], []
-    for c in ("tam", "tam_var"):
+    for c in ("tam", "tam_var", "tam_r"):
         for k in keeps:
             if c in pilot and runs[(c, k)]:
                 per = paired(runs[(c, k)], runs[("maskedkd", k)])
