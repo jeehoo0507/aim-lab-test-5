@@ -20,7 +20,7 @@ teacher sees only k = round(keep * 196) patch tokens chosen per image by --mask-
 {dataset}/{criterion}_k{keep}/seed{seed}/. log.csv gains mask_agree: masked vs full teacher argmax agreement
 on the first batch of each epoch (one extra full teacher forward per epoch).
 Stage 3 pilot (--mask-criterion tam / tam_var): TAM token selection from the cached teacher attribution
-(attribution_cache/, crop-mapped with the sample's RRC box / flip, before mixup) and the student's last-block
+(attribution_cache/, crop-mapped with the sample's RRC box / flip, then mixed like the images by mixup / cutmix) and the student's last-block
 attention; tam_var adds the 3-bucket per-image budget. The train loader then uses the box-returning transform
 (bit-identical images) and passes the sample index. log.csv gains tam_gap_ratio, mean_k, bucket_k and
 teacher_gflops (measured per-image teacher GFLOPs averaged over the epoch's images).
@@ -351,7 +351,7 @@ def train(args, rd, config, state):
             overlap = None
         for step, batch in enumerate(loader):
             x, y = batch[0], batch[1]
-            if tam_cache:   # cached teacher attribution on this view's crop (taken before mixup)
+            if tam_cache:   # cached teacher attribution on this view's crop (mixed after mixup below)
                 rels = [train_ds.items[i][0] for i in batch[4].tolist()]
                 T_attr = crop_maps(attr_cache.lookup(config["tam_kind"], rels).to(device),
                                    batch[3].to(device)).flatten(1)

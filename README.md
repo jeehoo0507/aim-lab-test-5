@@ -174,7 +174,7 @@ OUTPUT_ROOT=$OUTPUT_ROOT ./status.sh --stage 2
 | `rollout` | – (student rollout 상위 k, Stage 1 `rollout`과 같은 인덱스) | k | 0.435 (전 블록 attention + rollout) |
 | `tam` | 캐시 → 현재 크롭·flip으로 변환 | k | 0.022 (S용 student hook) |
 | `tam_var` | 캐시 → 현재 크롭·flip으로 변환 | 버킷 k(1−δ)/k/k(1+δ), 평균 k | 0.022 |
-| `tam_oracle` | 현재 view(mixup 전)에서 teacher 전체 forward의 attn_last (진단용) | k | 17.93 (teacher forward 1회 추가) |
+| `tam_oracle` | 현재 학습 입력(mixup 후)에서 teacher 전체 forward의 attn_last (진단용) | k | 17.93 (teacher forward 1회 추가) |
 
 TAM 선택 (`stage0/masking.py: tam_select, tam_buckets, TamSelector`). S = student 마지막 블록 CLS→patch attention
 (MaskedKD와 같은 신호, 학습 forward의 hook) — MaskedKD 대비 차이가 "teacher 신호를 섞은 효과"만 되도록.
@@ -193,9 +193,8 @@ log.csv 추가 열: `tam_gap_ratio`, `mean_k`, `bucket_k`, `teacher_gflops` (tam
 `tam_delta`, `tam_teacher_signal` (cache/oracle), `selection_gflops` (rollout·tam 계열). 기존 `maskedkd`/`random`의 config·선택·
 학습 경로는 stage12와 비트 단위로 같다 (`tests/test_stage3.py`, smoke 5단계에서 stage12 worktree와 최종 가중치 비교).
 
-**한계:** tam/tam_var의 T는 mixup/cutmix **전** 원본 view의 크롭 박스로 변환한 캐시 기준이다 (캐시는 원본 이미지에 대해서만
-있음). mixup 상대 이미지·cutmix로 붙여진 영역, RandAugment 기하 변환, random erasing은 T에 반영되지 않는다 (S는 mixup 후 입력의
-student attention이라 반영됨). tam_oracle도 mixup 전 view에서 teacher를 돌린다.
+**mixup/cutmix 처리:** 학습 배치는 전부 mixup 또는 cutmix(prob 1.0)이므로, T도 섞인 이미지에 맞춘다. tam/tam_var는 두 원본 view의 캐시 맵을 섞는다 (mixup: λ 가중 평균, cutmix: 패치 칸마다 붙여진 박스 면적 비율만큼 상대 맵). `RecordingMixup`은 timm Mixup과 RNG·이미지가 같고 λ·박스만 기록한다. tam_oracle은 섞인 이미지에서 teacher를 직접 돌린다.
+**한계:** RandAugment 기하 변환과 random erasing은 캐시 T에 반영되지 않는다.
 
 ### 캐시 진단 (`stage0/diagnose_cache.py` → `results/stage3_cache_diag.{csv,md}`, 학습 없음)
 train 이미지마다 RRC view 4개(전용 RNG, seed 0, flip 포함, RandAugment 없음)에서 같은 view의 teacher attn_last(oracle)와 비교:
