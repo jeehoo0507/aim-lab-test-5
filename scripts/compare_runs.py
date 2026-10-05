@@ -27,7 +27,7 @@ def main():
     ap.add_argument("--dataset", default="waterbirds")
     ap.add_argument("--keep", type=float, default=0.15)
     ap.add_argument("--ref", default="rollout")
-    ap.add_argument("--runs", nargs="+", default=["maskedkd", "rollout", "tam", "tam_r", "tam_r_g0", "tam_r_g0.5"])
+    ap.add_argument("--runs", nargs="+", default=["maskedkd", "rollout", "tam", "tam_r", "tam_r_g0", "tam_r_g0.5", "tam_g0"])
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--output-root", default=os.environ.get("OUTPUT_ROOT", "outputs"))
     a = ap.parse_args()
