@@ -67,7 +67,7 @@ CSV_FIELDS = ["epoch", "lr", "train_loss", "train_ce", "train_kd", "train_acc", 
 def parse_args(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--mode", required=True, choices=C.TRAIN_MODES)
-    ap.add_argument("--dataset", required=True, choices=C.DATASETS)
+    ap.add_argument("--dataset", required=True, choices=C.ALL_DATASETS)
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--lr", type=float, required=True)
     ap.add_argument("--alpha", type=float, default=C.KD_ALPHA, help="KD weight (kd only; 1.0 = fallback run)")

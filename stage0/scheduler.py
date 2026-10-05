@@ -364,7 +364,7 @@ def main(argv=None):
     ap.add_argument("--teacher-slots", type=int, default=int(os.environ["TEACHER_SLOTS"])
                     if os.environ.get("TEACHER_SLOTS") else None,
                     help="slots a teacher fine-tune occupies (default: preflight.json, else the whole GPU)")
-    ap.add_argument("--datasets", nargs="+", default=list(C.DATASETS), choices=C.DATASETS)
+    ap.add_argument("--datasets", nargs="+", default=list(C.DATASETS), choices=C.ALL_DATASETS)
     ap.add_argument("--corruption-workers", type=int,
                     default=int(os.environ.get("CORRUPTION_WORKERS", max(1, C.cpu_count() // 2))))
     ap.add_argument("--max-cpu-jobs", type=int, default=1)

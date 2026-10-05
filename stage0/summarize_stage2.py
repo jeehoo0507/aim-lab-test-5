@@ -181,7 +181,7 @@ def wga_section(kd, ce, runs, criteria, keeps):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--datasets", nargs="+", default=["cub"], choices=C.DATASETS)
+    ap.add_argument("--datasets", nargs="+", default=["cub"], choices=C.ALL_DATASETS)
     ap.add_argument("--keeps", type=float, nargs="+", default=list(C.MASK_KEEPS))
     ap.add_argument("--output-root")
     ap.add_argument("--results-dir", default=os.environ.get("RESULTS_DIR", "results"))
@@ -199,7 +199,7 @@ def main(argv=None):
         runs = {(c, k): load(out_root, ds, C.mask_dirname(c, k)) for c in TRAIN_CRITERIA for k in keeps}
         smoke |= any(not e.get("pretrained", True) for v in [kd, ce, *runs.values()] for e in v.values())
         kd_mean = statistics.mean(e["clean_acc"] for e in kd.values()) if kd else None
-        name = "CUB" if ds == "cub" else "Waterbirds"
+        name = {"cub": "CUB", "waterbirds": "Waterbirds"}.get(ds, ds)
         pilot = [c for c in PILOT_CRITERIA if any(runs[(c, k)] for k in keeps)]
         criteria = [c for c in TRAIN_CRITERIA if c in STAGE2_CRITERIA or c in pilot]   # pilot rows only if run
         cost = {c: selection_gflops(c, num_classes=C.NUM_CLASSES[ds]) for c in criteria} if pilot else {}

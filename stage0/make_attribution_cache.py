@@ -40,7 +40,7 @@ def teacher_attributions(teacher, x, device, amp=True):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset", required=True, choices=C.DATASETS)
+    ap.add_argument("--dataset", required=True, choices=C.ALL_DATASETS)
     ap.add_argument("--data-root")
     ap.add_argument("--output-root")
     ap.add_argument("--batch-size", type=int, default=64)

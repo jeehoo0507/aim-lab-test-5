@@ -126,7 +126,7 @@ def overlap(a, b, k):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset", required=True, choices=C.DATASETS)
+    ap.add_argument("--dataset", required=True, choices=C.ALL_DATASETS)
     ap.add_argument("--kind", default="attn_last", choices=("attn_last", "rollout"))
     ap.add_argument("--views", type=int, default=4)
     ap.add_argument("--seed", type=int, default=0)

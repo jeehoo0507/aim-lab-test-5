@@ -71,7 +71,7 @@ def main(argv=None):
                         f"{fmt(e, 'wga') if ds == 'waterbirds' else '–'} | {fmt(e, 'corruption_acc')} |")
 
         key = METRIC[ds]
-        name = "CUB" if ds == "cub" else "Waterbirds"
+        name = {"cub": "CUB", "waterbirds": "Waterbirds"}.get(ds, ds)
         for kd_mode, tag in (("kd", ""), ("kd_alpha1", " [α=1.0 fallback]")):
             if kd_mode == "kd_alpha1" and not evals[kd_mode]:
                 continue

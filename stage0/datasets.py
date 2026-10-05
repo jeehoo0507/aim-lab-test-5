@@ -20,6 +20,7 @@ from stage0 import common as C
 EXPECTED_SPLITS = {
     "cub": {"train_full": 5994, "test": 5794},  # train_full = train + val (val = 10% per class)
     "waterbirds": {"train": 4795, "val": 1199, "test": 5794},
+    "imagenet100": {"train": 117000, "val": 13000, "test": 5000},  # HF ilee0022/ImageNet100
 }
 SPLIT_FILE = "stage0_split.json"
 

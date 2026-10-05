@@ -118,7 +118,7 @@ def main(argv=None):
     from stage0.corruption_compat import CORRUPTIONS
 
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--datasets", nargs="+", default=list(C.DATASETS), choices=C.DATASETS)
+    ap.add_argument("--datasets", nargs="+", default=list(C.DATASETS), choices=C.ALL_DATASETS)
     ap.add_argument("--workers", type=int, default=max(1, C.cpu_count() // 2))
     ap.add_argument("--data-root")
     ap.add_argument("--overwrite", action="store_true")

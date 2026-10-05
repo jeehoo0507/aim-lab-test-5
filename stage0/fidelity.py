@@ -105,7 +105,7 @@ def run_view(view, ds, teacher, student, cache, keeps, seeds, device, bs, nw, am
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset", required=True, choices=C.DATASETS)
+    ap.add_argument("--dataset", required=True, choices=C.ALL_DATASETS)
     ap.add_argument("--student-ckpt", default=None, help="default: $OUTPUT_ROOT/{dataset}/kd/seed0/last.pt")
     ap.add_argument("--keeps", type=float, nargs="+", default=list(KEEPS))
     ap.add_argument("--random-seeds", type=int, nargs="+", default=list(RANDOM_SEEDS))

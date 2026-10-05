@@ -14,14 +14,15 @@ from pathlib import Path
 import numpy as np
 import torch
 
-DATASETS = ("cub", "waterbirds")
+DATASETS = ("cub", "waterbirds")            # default set of the Stage 0-3 pipelines
+ALL_DATASETS = DATASETS + ("imagenet100",)  # imagenet100: from-scratch check (scripts/*imagenet100*)
 MODES = ("teacher", "ce", "kd")
 MASK_MODE = "maskedkd"                 # Stage 2: KD with a token-reduced teacher input
 TRAIN_MODES = MODES + (MASK_MODE,)
 KD_MODES = ("kd", MASK_MODE)
 MASK_KEEPS = (0.5, 0.3, 0.15)
 CKPT_EPOCHS = (10, 30, 60)             # Stage 2: extra student-only checkpoints for later fidelity runs
-NUM_CLASSES = {"cub": 200, "waterbirds": 2}
+NUM_CLASSES = {"cub": 200, "waterbirds": 2, "imagenet100": 100}
 
 TEACHER_ARCH = "deit_base_patch16_224"
 STUDENT_ARCH = "deit_tiny_patch16_224"

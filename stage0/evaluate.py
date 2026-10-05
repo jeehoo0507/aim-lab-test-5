@@ -63,7 +63,7 @@ def load_run_model(rd, mode, device):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset", required=True, choices=C.DATASETS)
+    ap.add_argument("--dataset", required=True, choices=C.ALL_DATASETS)
     ap.add_argument("--mode", required=True, help="teacher | ce | kd | kd_alpha1 (run directory name)")
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--data-root")
