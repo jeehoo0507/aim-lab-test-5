@@ -1,0 +1,14 @@
+dataset waterbirds keep 0.15 lr 5e-05 gaps [0 0.5] seeds [0 1 2], 3 at a time; logs in /home/coder/stage0/outputs/_ablation_logs
+start tam_r_g0_k0.15/seed0
+start tam_r_g0_k0.15/seed1
+start tam_r_g0_k0.15/seed2
+done  tam_r_g0_k0.15/seed0
+start tam_r_g0.5_k0.15/seed0
+done  tam_r_g0_k0.15/seed2
+start tam_r_g0.5_k0.15/seed1
+done  tam_r_g0_k0.15/seed1
+start tam_r_g0.5_k0.15/seed2
+done  tam_r_g0.5_k0.15/seed0
+done  tam_r_g0.5_k0.15/seed1
+done  tam_r_g0.5_k0.15/seed2
+all done: uv run python scripts/compare_runs.py --dataset waterbirds --keep 0.15

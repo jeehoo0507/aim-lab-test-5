@@ -1,0 +1,557 @@
+{
+  "gpus": [
+    "0"
+  ],
+  "jobs": [
+    {
+      "deps": [],
+      "ended": null,
+      "gpu": null,
+      "kind": "cpu",
+      "log": null,
+      "name": "waterbirds/corruptions",
+      "rc": null,
+      "run_dir": null,
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/attribution_cache",
+      "rc": null,
+      "run_dir": null,
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/rollout_k0.3/seed0",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.3/seed0",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/rollout_k0.3/seed0",
+        "waterbirds/corruptions"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/eval/rollout_k0.3/seed0",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.3/seed0",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/rollout_k0.3/seed1",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.3/seed1",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/rollout_k0.3/seed1",
+        "waterbirds/corruptions"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/eval/rollout_k0.3/seed1",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.3/seed1",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791123290.4041145,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__rollout_k0.3__seed2.log",
+      "name": "waterbirds/rollout_k0.3/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.3/seed2",
+      "started": 1791120385.7419732,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/rollout_k0.3/seed2",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126319.5801494,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__rollout_k0.3__seed2.log",
+      "name": "waterbirds/eval/rollout_k0.3/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.3/seed2",
+      "started": 1791126063.8690608,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/rollout_k0.15/seed0",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.15/seed0",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/rollout_k0.15/seed0",
+        "waterbirds/corruptions"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/eval/rollout_k0.15/seed0",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.15/seed0",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/rollout_k0.15/seed1",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.15/seed1",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/rollout_k0.15/seed1",
+        "waterbirds/corruptions"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/eval/rollout_k0.15/seed1",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.15/seed1",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791123250.3081272,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__rollout_k0.15__seed2.log",
+      "name": "waterbirds/rollout_k0.15/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.15/seed2",
+      "started": 1791120385.7427151,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/rollout_k0.15/seed2",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126364.6913707,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__rollout_k0.15__seed2.log",
+      "name": "waterbirds/eval/rollout_k0.15/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/rollout_k0.15/seed2",
+      "started": 1791126103.9837773,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/tam_k0.3/seed0",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.3/seed0",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_k0.3/seed0",
+        "waterbirds/corruptions"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/eval/tam_k0.3/seed0",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.3/seed0",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/tam_k0.3/seed1",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.3/seed1",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_k0.3/seed1",
+        "waterbirds/corruptions"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/eval/tam_k0.3/seed1",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.3/seed1",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": 1791123220.2337432,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__tam_k0.3__seed2.log",
+      "name": "waterbirds/tam_k0.3/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.3/seed2",
+      "started": 1791120385.7434754,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_k0.3/seed2",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126374.7196474,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__tam_k0.3__seed2.log",
+      "name": "waterbirds/eval/tam_k0.3/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.3/seed2",
+      "started": 1791126109.000479,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/tam_k0.15/seed0",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.15/seed0",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_k0.15/seed0",
+        "waterbirds/corruptions"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/eval/tam_k0.15/seed0",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.15/seed0",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/tam_k0.15/seed1",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.15/seed1",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_k0.15/seed1",
+        "waterbirds/corruptions"
+      ],
+      "ended": null,
+      "gpu": null,
+      "kind": "gpu",
+      "log": null,
+      "name": "waterbirds/eval/tam_k0.15/seed1",
+      "rc": null,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.15/seed1",
+      "started": null,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": 1791123185.1579359,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__tam_k0.15__seed2.log",
+      "name": "waterbirds/tam_k0.15/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.15/seed2",
+      "started": 1791120385.7441216,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_k0.15/seed2",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126374.720573,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__tam_k0.15__seed2.log",
+      "name": "waterbirds/eval/tam_k0.15/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_k0.15/seed2",
+      "started": 1791126109.0017831,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": 1791123305.441357,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__tam_r_k0.3__seed0.log",
+      "name": "waterbirds/tam_r_k0.3/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.3/seed0",
+      "started": 1791120385.7448182,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_r_k0.3/seed0",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126379.7381315,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__tam_r_k0.3__seed0.log",
+      "name": "waterbirds/eval/tam_r_k0.3/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.3/seed0",
+      "started": 1791126119.0324478,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": 1791126063.8571608,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__tam_r_k0.3__seed1.log",
+      "name": "waterbirds/tam_r_k0.3/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.3/seed1",
+      "started": 1791123185.1696188,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_r_k0.3/seed1",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126585.3391562,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__tam_r_k0.3__seed1.log",
+      "name": "waterbirds/eval/tam_r_k0.3/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.3/seed1",
+      "started": 1791126319.5832098,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": 1791126108.9878554,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__tam_r_k0.3__seed2.log",
+      "name": "waterbirds/tam_r_k0.3/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.3/seed2",
+      "started": 1791123220.2447438,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_r_k0.3/seed2",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126620.4178753,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__tam_r_k0.3__seed2.log",
+      "name": "waterbirds/eval/tam_r_k0.3/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.3/seed2",
+      "started": 1791126364.7034729,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": 1791126103.9712875,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__tam_r_k0.15__seed0.log",
+      "name": "waterbirds/tam_r_k0.15/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.15/seed0",
+      "started": 1791123250.3192031,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_r_k0.15/seed0",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126630.4444287,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__tam_r_k0.15__seed0.log",
+      "name": "waterbirds/eval/tam_r_k0.15/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.15/seed0",
+      "started": 1791126374.7329803,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": 1791126108.9887326,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__tam_r_k0.15__seed1.log",
+      "name": "waterbirds/tam_r_k0.15/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.15/seed1",
+      "started": 1791123290.4167368,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_r_k0.15/seed1",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126630.4452026,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__tam_r_k0.15__seed1.log",
+      "name": "waterbirds/eval/tam_r_k0.15/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.15/seed1",
+      "started": 1791126374.734336,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/attribution_cache"
+      ],
+      "ended": 1791126119.018888,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__tam_r_k0.15__seed2.log",
+      "name": "waterbirds/tam_r_k0.15/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.15/seed2",
+      "started": 1791123305.4538093,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/tam_r_k0.15/seed2",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791126630.4550083,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/waterbirds__eval__tam_r_k0.15__seed2.log",
+      "name": "waterbirds/eval/tam_r_k0.15/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/tam_r_k0.15/seed2",
+      "started": 1791126379.7502851,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791126639.092441,
+      "gpu": null,
+      "kind": "final",
+      "log": "/home/coder/stage0/outputs/_scheduler_stage2/logs/summarize_stage2.log",
+      "name": "summarize_stage2",
+      "rc": 0,
+      "run_dir": null,
+      "started": 1791126630.4568093,
+      "state": "done"
+    }
+  ],
+  "pid": 401535,
+  "slots": 5,
+  "teacher_slots": 3,
+  "updated": 1791126639.0939715
+}

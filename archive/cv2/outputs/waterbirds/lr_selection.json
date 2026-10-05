@@ -1,0 +1,21 @@
+{
+  "student": {
+    "lr": 5e-05,
+    "metric": "final_val_acc",
+    "scores": {
+      "0.0001": 88.741,
+      "0.0003": 88.574,
+      "5e-05": 89.491
+    },
+    "source": "/home/coder/stage0/outputs/waterbirds/lrsel/ce_lr5e-05/seed0"
+  },
+  "teacher": {
+    "lr": 5e-05,
+    "metric": "best_val_acc",
+    "scores": {
+      "0.0001": 93.32777261734009,
+      "5e-05": 93.99499297142029
+    },
+    "source": "/home/coder/stage0/outputs/waterbirds/lrsel/teacher_lr5e-05/seed0"
+  }
+}

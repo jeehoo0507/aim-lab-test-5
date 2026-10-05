@@ -1,0 +1,7 @@
+{
+  "best_epoch": 60,
+  "best_val_acc": 82.33333230018616,
+  "epochs": 100,
+  "final_val_acc": 81.0,
+  "finished": "2026-10-03 17:14:22"
+}

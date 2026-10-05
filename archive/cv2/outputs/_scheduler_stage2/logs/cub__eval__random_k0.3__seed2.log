@@ -1,0 +1,5 @@
+
+===== 2026-10-04 05:06:24 gpu=0 /home/coder/aim-lab-stage12/.venv/bin/python -m stage0.evaluate --dataset cub --mode random_k0.3 --seed 2
+/home/coder/stage0/outputs/cub/random_k0.3/seed2: clean 79.65
+  corruption acc (75 conditions x 1000 images): 55.08
+wrote /home/coder/stage0/outputs/cub/random_k0.3/seed2/eval.json

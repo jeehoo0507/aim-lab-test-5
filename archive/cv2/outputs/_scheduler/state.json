@@ -1,0 +1,613 @@
+{
+  "gpus": [
+    "0"
+  ],
+  "jobs": [
+    {
+      "deps": [],
+      "ended": 1791038986.7381258,
+      "gpu": null,
+      "kind": "cpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__corruptions.log",
+      "name": "cub/corruptions",
+      "rc": 0,
+      "run_dir": null,
+      "started": 1791037531.7233808,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791041235.377795,
+      "gpu": "0",
+      "kind": "gpu_exclusive",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__lrsel__teacher_lr5e-05.log",
+      "name": "cub/lrsel/teacher_lr5e-05",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/lrsel/teacher_lr5e-05/seed0",
+      "started": 1791037531.7210243,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791044827.7598052,
+      "gpu": "0",
+      "kind": "gpu_exclusive",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__lrsel__teacher_lr0.0001.log",
+      "name": "cub/lrsel/teacher_lr0.0001",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/lrsel/teacher_lr0.0001/seed0",
+      "started": 1791041235.3914604,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791040326.7404742,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__lrsel__ce_lr5e-05.log",
+      "name": "cub/lrsel/ce_lr5e-05",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/lrsel/ce_lr5e-05/seed0",
+      "started": 1791037531.7219276,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791040326.740931,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__lrsel__ce_lr0.0001.log",
+      "name": "cub/lrsel/ce_lr0.0001",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/lrsel/ce_lr0.0001/seed0",
+      "started": 1791037531.7226903,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791042786.6848638,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__lrsel__ce_lr0.0003.log",
+      "name": "cub/lrsel/ce_lr0.0003",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/lrsel/ce_lr0.0003/seed0",
+      "started": 1791040326.7421277,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/lrsel/teacher_lr5e-05",
+        "cub/lrsel/teacher_lr0.0001"
+      ],
+      "ended": 1791044830.5228395,
+      "gpu": null,
+      "kind": "local",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__select_lr__teacher.log",
+      "name": "cub/select_lr/teacher",
+      "rc": 0,
+      "run_dir": null,
+      "started": 1791044827.7725224,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/lrsel/ce_lr5e-05",
+        "cub/lrsel/ce_lr0.0001",
+        "cub/lrsel/ce_lr0.0003"
+      ],
+      "ended": 1791042789.3990824,
+      "gpu": null,
+      "kind": "local",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__select_lr__student.log",
+      "name": "cub/select_lr/student",
+      "rc": 0,
+      "run_dir": null,
+      "started": 1791042786.696364,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/select_lr/teacher"
+      ],
+      "ended": 1791052379.4546096,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__diagnose_teacher.log",
+      "name": "cub/diagnose_teacher",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/teacher/seed0",
+      "started": 1791052319.2821639,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/select_lr/teacher",
+        "cub/corruptions"
+      ],
+      "ended": 1791052630.611008,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__eval__teacher__seed0.log",
+      "name": "cub/eval/teacher/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/teacher/seed0",
+      "started": 1791052319.2826586,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/select_lr/student",
+        "cub/corruptions"
+      ],
+      "ended": 1791053092.1192546,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__eval__ce__seed0.log",
+      "name": "cub/eval/ce/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/ce/seed0",
+      "started": 1791052846.2263014,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/select_lr/student"
+      ],
+      "ended": 1791047227.325871,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__ce__seed1.log",
+      "name": "cub/ce/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/ce/seed1",
+      "started": 1791044782.5041738,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/ce/seed1",
+        "cub/corruptions"
+      ],
+      "ended": 1791053307.914244,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__eval__ce__seed1.log",
+      "name": "cub/eval/ce/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/ce/seed1",
+      "started": 1791053092.1307032,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/select_lr/student"
+      ],
+      "ended": 1791052515.3812609,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__ce__seed2.log",
+      "name": "cub/ce/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/ce/seed2",
+      "started": 1791050027.514139,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/ce/seed2",
+        "cub/corruptions"
+      ],
+      "ended": 1791053528.5044823,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__eval__ce__seed2.log",
+      "name": "cub/eval/ce/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/ce/seed2",
+      "started": 1791053307.9265246,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/select_lr/student",
+        "cub/select_lr/teacher"
+      ],
+      "ended": 1791047663.7851763,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__kd__seed0.log",
+      "name": "cub/kd/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/kd/seed0",
+      "started": 1791045019.1863666,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/kd/seed0",
+        "cub/corruptions"
+      ],
+      "ended": 1791053749.7163615,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__eval__kd__seed0.log",
+      "name": "cub/eval/kd/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/kd/seed0",
+      "started": 1791053528.516287,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/select_lr/student",
+        "cub/select_lr/teacher"
+      ],
+      "ended": 1791050027.5022664,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__kd__seed1.log",
+      "name": "cub/kd/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/kd/seed1",
+      "started": 1791047227.3374987,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/kd/seed1",
+        "cub/corruptions"
+      ],
+      "ended": 1791053970.367658,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__eval__kd__seed1.log",
+      "name": "cub/eval/kd/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/kd/seed1",
+      "started": 1791053749.720298,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/select_lr/student",
+        "cub/select_lr/teacher"
+      ],
+      "ended": 1791050448.936782,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__kd__seed2.log",
+      "name": "cub/kd/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/kd/seed2",
+      "started": 1791047663.796373,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "cub/kd/seed2",
+        "cub/corruptions"
+      ],
+      "ended": 1791054190.8713043,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/cub__eval__kd__seed2.log",
+      "name": "cub/eval/kd/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/cub/kd/seed2",
+      "started": 1791053970.3788598,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791040427.00361,
+      "gpu": null,
+      "kind": "cpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__corruptions.log",
+      "name": "waterbirds/corruptions",
+      "rc": 0,
+      "run_dir": null,
+      "started": 1791038986.749192,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791048642.7343879,
+      "gpu": "0",
+      "kind": "gpu_exclusive",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__lrsel__teacher_lr5e-05.log",
+      "name": "waterbirds/lrsel/teacher_lr5e-05",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/lrsel/teacher_lr5e-05/seed0",
+      "started": 1791044830.5249221,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791052316.5375056,
+      "gpu": "0",
+      "kind": "gpu_exclusive",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__lrsel__teacher_lr0.0001.log",
+      "name": "waterbirds/lrsel/teacher_lr0.0001",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/lrsel/teacher_lr0.0001/seed0",
+      "started": 1791048642.7384999,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791042560.6814132,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__lrsel__ce_lr5e-05.log",
+      "name": "waterbirds/lrsel/ce_lr5e-05",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/lrsel/ce_lr5e-05/seed0",
+      "started": 1791040326.7429156,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791044782.4920628,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__lrsel__ce_lr0.0001.log",
+      "name": "waterbirds/lrsel/ce_lr0.0001",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/lrsel/ce_lr0.0001/seed0",
+      "started": 1791042560.6845844,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791045016.4421022,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__lrsel__ce_lr0.0003.log",
+      "name": "waterbirds/lrsel/ce_lr0.0003",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/lrsel/ce_lr0.0003/seed0",
+      "started": 1791042789.4009237,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/lrsel/teacher_lr5e-05",
+        "waterbirds/lrsel/teacher_lr0.0001"
+      ],
+      "ended": 1791052319.2805164,
+      "gpu": null,
+      "kind": "local",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__select_lr__teacher.log",
+      "name": "waterbirds/select_lr/teacher",
+      "rc": 0,
+      "run_dir": null,
+      "started": 1791052316.5485582,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/lrsel/ce_lr5e-05",
+        "waterbirds/lrsel/ce_lr0.0001",
+        "waterbirds/lrsel/ce_lr0.0003"
+      ],
+      "ended": 1791045019.1842952,
+      "gpu": null,
+      "kind": "local",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__select_lr__student.log",
+      "name": "waterbirds/select_lr/student",
+      "rc": 0,
+      "run_dir": null,
+      "started": 1791045016.4541717,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/select_lr/teacher"
+      ],
+      "ended": 1791052846.2126093,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__diagnose_teacher.log",
+      "name": "waterbirds/diagnose_teacher",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/teacher/seed0",
+      "started": 1791052791.0955737,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/select_lr/teacher",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791054516.7461727,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__eval__teacher__seed0.log",
+      "name": "waterbirds/eval/teacher/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/teacher/seed0",
+      "started": 1791054190.875252,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/select_lr/student",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791054737.583623,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__eval__ce__seed0.log",
+      "name": "waterbirds/eval/ce/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/ce/seed0",
+      "started": 1791054516.75005,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/select_lr/student"
+      ],
+      "ended": 1791052791.0832202,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__ce__seed1.log",
+      "name": "waterbirds/ce/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/ce/seed1",
+      "started": 1791050448.9432268,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/ce/seed1",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791054958.1314998,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__eval__ce__seed1.log",
+      "name": "waterbirds/eval/ce/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/ce/seed1",
+      "started": 1791054737.5956023,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/select_lr/student"
+      ],
+      "ended": 1791055033.385667,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__ce__seed2.log",
+      "name": "waterbirds/ce/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/ce/seed2",
+      "started": 1791052319.2816072,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/ce/seed2",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791055223.8514023,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__eval__ce__seed2.log",
+      "name": "waterbirds/eval/ce/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/ce/seed2",
+      "started": 1791055033.3974695,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/select_lr/student",
+        "waterbirds/select_lr/teacher"
+      ],
+      "ended": 1791055399.2338862,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__kd__seed0.log",
+      "name": "waterbirds/kd/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/kd/seed0",
+      "started": 1791052379.4574006,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/kd/seed0",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791055574.645248,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__eval__kd__seed0.log",
+      "name": "waterbirds/eval/kd/seed0",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/kd/seed0",
+      "started": 1791055399.2459836,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/select_lr/student",
+        "waterbirds/select_lr/teacher"
+      ],
+      "ended": 1791055504.4682145,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__kd__seed1.log",
+      "name": "waterbirds/kd/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/kd/seed1",
+      "started": 1791052515.3835669,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/kd/seed1",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791055674.89698,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__eval__kd__seed1.log",
+      "name": "waterbirds/eval/kd/seed1",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/kd/seed1",
+      "started": 1791055504.479895,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/select_lr/student",
+        "waterbirds/select_lr/teacher"
+      ],
+      "ended": 1791055589.6827672,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__kd__seed2.log",
+      "name": "waterbirds/kd/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/kd/seed2",
+      "started": 1791052630.6159067,
+      "state": "done"
+    },
+    {
+      "deps": [
+        "waterbirds/kd/seed2",
+        "waterbirds/corruptions"
+      ],
+      "ended": 1791055755.095139,
+      "gpu": "0",
+      "kind": "gpu",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/waterbirds__eval__kd__seed2.log",
+      "name": "waterbirds/eval/kd/seed2",
+      "rc": 0,
+      "run_dir": "/home/coder/stage0/outputs/waterbirds/kd/seed2",
+      "started": 1791055589.6951258,
+      "state": "done"
+    },
+    {
+      "deps": [],
+      "ended": 1791055757.5088139,
+      "gpu": null,
+      "kind": "final",
+      "log": "/home/coder/stage0/outputs/_scheduler/logs/summarize.log",
+      "name": "summarize",
+      "rc": 0,
+      "run_dir": null,
+      "started": 1791055755.1063,
+      "state": "done"
+    }
+  ],
+  "pid": 41962,
+  "slots": 5,
+  "teacher_slots": 3,
+  "updated": 1791055757.5104597
+}

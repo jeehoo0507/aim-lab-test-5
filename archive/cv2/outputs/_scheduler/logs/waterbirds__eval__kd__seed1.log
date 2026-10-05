@@ -1,0 +1,5 @@
+
+===== 2026-10-03 19:25:04 gpu=0 /home/coder/aim-lab-test-5/.venv/bin/python -m stage0.evaluate --dataset waterbirds --mode kd --seed 1
+/home/coder/stage0/outputs/waterbirds/kd/seed1: clean 91.49  WGA 73.99  groups [99.78, 86.65, 73.99, 96.88]
+  corruption acc (75 conditions x 1000 images): 79.41
+wrote /home/coder/stage0/outputs/waterbirds/kd/seed1/eval.json

@@ -1,0 +1,45 @@
+39 jobs, 18 already done. GPUs ['0'] x 5 slot(s); a teacher fine-tune uses 3.
+[13:26:25] start   waterbirds/rollout_k0.3/seed2  (gpu 0)
+[13:26:25] start   waterbirds/rollout_k0.15/seed2  (gpu 0)
+[13:26:25] start   waterbirds/tam_k0.3/seed2  (gpu 0)
+[13:26:25] start   waterbirds/tam_k0.15/seed2  (gpu 0)
+[13:26:25] start   waterbirds/tam_r_k0.3/seed0  (gpu 0)
+[14:13:05] done    waterbirds/tam_k0.15/seed2
+[14:13:05] start   waterbirds/tam_r_k0.3/seed1  (gpu 0)
+[14:13:40] done    waterbirds/tam_k0.3/seed2
+[14:13:40] start   waterbirds/tam_r_k0.3/seed2  (gpu 0)
+[14:14:10] done    waterbirds/rollout_k0.15/seed2
+[14:14:10] start   waterbirds/tam_r_k0.15/seed0  (gpu 0)
+[14:14:50] done    waterbirds/rollout_k0.3/seed2
+[14:14:50] start   waterbirds/tam_r_k0.15/seed1  (gpu 0)
+[14:15:05] done    waterbirds/tam_r_k0.3/seed0
+[14:15:05] start   waterbirds/tam_r_k0.15/seed2  (gpu 0)
+[15:01:03] done    waterbirds/tam_r_k0.3/seed1
+[15:01:03] start   waterbirds/eval/rollout_k0.3/seed2  (gpu 0)
+[15:01:43] done    waterbirds/tam_r_k0.15/seed0
+[15:01:43] start   waterbirds/eval/rollout_k0.15/seed2  (gpu 0)
+[15:01:48] done    waterbirds/tam_r_k0.3/seed2
+[15:01:48] done    waterbirds/tam_r_k0.15/seed1
+[15:01:48] start   waterbirds/eval/tam_k0.3/seed2  (gpu 0)
+[15:01:49] start   waterbirds/eval/tam_k0.15/seed2  (gpu 0)
+[15:01:59] done    waterbirds/tam_r_k0.15/seed2
+[15:01:59] start   waterbirds/eval/tam_r_k0.3/seed0  (gpu 0)
+[15:05:19] done    waterbirds/eval/rollout_k0.3/seed2
+[15:05:19] start   waterbirds/eval/tam_r_k0.3/seed1  (gpu 0)
+[15:06:04] done    waterbirds/eval/rollout_k0.15/seed2
+[15:06:04] start   waterbirds/eval/tam_r_k0.3/seed2  (gpu 0)
+[15:06:14] done    waterbirds/eval/tam_k0.3/seed2
+[15:06:14] done    waterbirds/eval/tam_k0.15/seed2
+[15:06:14] start   waterbirds/eval/tam_r_k0.15/seed0  (gpu 0)
+[15:06:14] start   waterbirds/eval/tam_r_k0.15/seed1  (gpu 0)
+[15:06:19] done    waterbirds/eval/tam_r_k0.3/seed0
+[15:06:19] start   waterbirds/eval/tam_r_k0.15/seed2  (gpu 0)
+[15:09:45] done    waterbirds/eval/tam_r_k0.3/seed1
+[15:10:20] done    waterbirds/eval/tam_r_k0.3/seed2
+[15:10:30] done    waterbirds/eval/tam_r_k0.15/seed0
+[15:10:30] done    waterbirds/eval/tam_r_k0.15/seed1
+[15:10:30] done    waterbirds/eval/tam_r_k0.15/seed2
+[15:10:30] start   summarize_stage2
+[15:10:39] done    summarize_stage2
+
+finished. failed/blocked: none

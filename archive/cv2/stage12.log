@@ -1,0 +1,107 @@
+  64/5394 images (2s)
+  1344/5394 images (5s)
+  2624/5394 images (9s)
+  3904/5394 images (12s)
+  5184/5394 images (15s)
+wrote /home/coder/stage0/outputs/cub/attribution_cache (5394 images, 16s)
+teacher /home/coder/stage0/outputs/cub/teacher/seed0/best.pt
+student /home/coder/stage0/outputs/cub/kd/seed0/last.pt
+  train_view: 64/5394 images (3s)
+  train_view: 704/5394 images (13s)
+  train_view: 1344/5394 images (23s)
+  train_view: 1984/5394 images (32s)
+  train_view: 2624/5394 images (42s)
+  train_view: 3264/5394 images (52s)
+  train_view: 3904/5394 images (62s)
+  train_view: 4544/5394 images (72s)
+  train_view: 5184/5394 images (82s)
+train_view: full-teacher acc 84.72% on 5394 images
+  test_clean: 64/5794 images (2s)
+  test_clean: 704/5794 images (10s)
+  test_clean: 1344/5794 images (18s)
+  test_clean: 1984/5794 images (27s)
+  test_clean: 2624/5794 images (35s)
+  test_clean: 3264/5794 images (43s)
+  test_clean: 3904/5794 images (51s)
+  test_clean: 4544/5794 images (59s)
+  test_clean: 5184/5794 images (67s)
+  test_clean: 5794/5794 images (75s)
+test_clean: full-teacher acc 84.88% on 5794 images
+wrote results/stage1_fidelity.csv/.md/.png
+38 jobs, 1 already done. GPUs ['0'] x 5 slot(s); a teacher fine-tune uses 3.
+[02:05:18] start   cub/maskedkd_k0.5/seed0  (gpu 0)
+[02:05:18] start   cub/maskedkd_k0.5/seed1  (gpu 0)
+[02:05:18] start   cub/maskedkd_k0.5/seed2  (gpu 0)
+[02:05:18] start   cub/maskedkd_k0.3/seed0  (gpu 0)
+[02:05:18] start   cub/maskedkd_k0.3/seed1  (gpu 0)
+[02:58:04] done    cub/maskedkd_k0.3/seed0
+[02:58:04] done    cub/maskedkd_k0.3/seed1
+[02:58:04] start   cub/maskedkd_k0.3/seed2  (gpu 0)
+[02:58:04] start   cub/maskedkd_k0.15/seed0  (gpu 0)
+[02:58:09] done    cub/maskedkd_k0.5/seed1
+[02:58:09] start   cub/maskedkd_k0.15/seed1  (gpu 0)
+[02:58:14] done    cub/maskedkd_k0.5/seed0
+[02:58:14] done    cub/maskedkd_k0.5/seed2
+[02:58:14] start   cub/maskedkd_k0.15/seed2  (gpu 0)
+[02:58:14] start   cub/random_k0.5/seed0  (gpu 0)
+[03:48:03] done    cub/maskedkd_k0.15/seed1
+[03:48:03] start   cub/random_k0.5/seed1  (gpu 0)
+[03:48:13] done    cub/maskedkd_k0.15/seed0
+[03:48:13] done    cub/maskedkd_k0.15/seed2
+[03:48:13] start   cub/random_k0.5/seed2  (gpu 0)
+[03:48:13] start   cub/random_k0.3/seed0  (gpu 0)
+[03:48:18] done    cub/maskedkd_k0.3/seed2
+[03:48:18] start   cub/random_k0.3/seed1  (gpu 0)
+[03:48:28] done    cub/random_k0.5/seed0
+[03:48:28] start   cub/random_k0.3/seed2  (gpu 0)
+[04:39:24] done    cub/random_k0.3/seed0
+[04:39:24] done    cub/random_k0.3/seed1
+[04:39:24] start   cub/random_k0.15/seed0  (gpu 0)
+[04:39:24] start   cub/random_k0.15/seed1  (gpu 0)
+[04:39:30] done    cub/random_k0.5/seed2
+[04:39:30] start   cub/random_k0.15/seed2  (gpu 0)
+[04:39:35] done    cub/random_k0.5/seed1
+[04:39:35] done    cub/random_k0.3/seed2
+[04:39:35] start   cub/eval/maskedkd_k0.5/seed0  (gpu 0)
+[04:39:35] start   cub/eval/maskedkd_k0.5/seed1  (gpu 0)
+[04:43:25] done    cub/eval/maskedkd_k0.5/seed0
+[04:43:25] done    cub/eval/maskedkd_k0.5/seed1
+[04:43:25] start   cub/eval/maskedkd_k0.5/seed2  (gpu 0)
+[04:43:25] start   cub/eval/maskedkd_k0.3/seed0  (gpu 0)
+[04:47:16] done    cub/eval/maskedkd_k0.5/seed2
+[04:47:16] done    cub/eval/maskedkd_k0.3/seed0
+[04:47:16] start   cub/eval/maskedkd_k0.3/seed1  (gpu 0)
+[04:47:16] start   cub/eval/maskedkd_k0.3/seed2  (gpu 0)
+[04:51:07] done    cub/eval/maskedkd_k0.3/seed1
+[04:51:07] done    cub/eval/maskedkd_k0.3/seed2
+[04:51:07] start   cub/eval/maskedkd_k0.15/seed0  (gpu 0)
+[04:51:07] start   cub/eval/maskedkd_k0.15/seed1  (gpu 0)
+[04:54:57] done    cub/eval/maskedkd_k0.15/seed0
+[04:54:57] done    cub/eval/maskedkd_k0.15/seed1
+[04:54:57] start   cub/eval/maskedkd_k0.15/seed2  (gpu 0)
+[04:54:57] start   cub/eval/random_k0.5/seed0  (gpu 0)
+[04:58:48] done    cub/eval/maskedkd_k0.15/seed2
+[04:58:48] done    cub/eval/random_k0.5/seed0
+[04:58:48] start   cub/eval/random_k0.5/seed1  (gpu 0)
+[04:58:48] start   cub/eval/random_k0.5/seed2  (gpu 0)
+[05:02:39] done    cub/eval/random_k0.5/seed1
+[05:02:39] done    cub/eval/random_k0.5/seed2
+[05:02:39] start   cub/eval/random_k0.3/seed0  (gpu 0)
+[05:02:39] start   cub/eval/random_k0.3/seed1  (gpu 0)
+[05:06:24] done    cub/eval/random_k0.3/seed1
+[05:06:24] start   cub/eval/random_k0.3/seed2  (gpu 0)
+[05:06:29] done    cub/eval/random_k0.3/seed0
+[05:09:30] done    cub/eval/random_k0.3/seed2
+[05:26:53] done    cub/random_k0.15/seed1
+[05:26:53] start   cub/eval/random_k0.15/seed1  (gpu 0)
+[05:26:58] done    cub/random_k0.15/seed0
+[05:26:58] start   cub/eval/random_k0.15/seed0  (gpu 0)
+[05:27:03] done    cub/random_k0.15/seed2
+[05:27:03] start   cub/eval/random_k0.15/seed2  (gpu 0)
+[05:29:53] done    cub/eval/random_k0.15/seed1
+[05:29:58] done    cub/eval/random_k0.15/seed0
+[05:30:03] done    cub/eval/random_k0.15/seed2
+[05:30:03] start   summarize_stage2
+[05:30:10] done    summarize_stage2
+
+finished. failed/blocked: none

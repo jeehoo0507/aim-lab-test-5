@@ -1,0 +1,36 @@
+{
+  "cpu_count": 16,
+  "created": "2026-10-03 14:21:09",
+  "cuda": "12.8",
+  "gpus": [
+    {
+      "free_gb": 23.11090087890625,
+      "index": 0,
+      "name": "NVIDIA RTX A5000",
+      "other_procs": 1,
+      "sm": "sm_86",
+      "total_gb": 23.547119140625
+    }
+  ],
+  "memory": {
+    "kd": {
+      "micro_batch": 128,
+      "peak_gb": 3.431640625,
+      "step_s": 0.14260268211364746
+    },
+    "teacher": {
+      "micro_batch": 128,
+      "peak_gb": 9.63671875,
+      "step_s": 0.29189443588256836
+    }
+  },
+  "micro_batch": {
+    "ce": 128,
+    "kd": 128,
+    "teacher": 128
+  },
+  "ram_gb": 60.0,
+  "suggested_runs_per_gpu": 5,
+  "teacher_slot_cost": 3,
+  "torch": "2.9.1+cu128"
+}

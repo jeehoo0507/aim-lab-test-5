@@ -1,0 +1,5 @@
+
+===== 2026-10-03 18:44:52 gpu=0 /home/coder/aim-lab-test-5/.venv/bin/python -m stage0.evaluate --dataset cub --mode ce --seed 1
+/home/coder/stage0/outputs/cub/ce/seed1: clean 80.27
+  corruption acc (75 conditions x 1000 images): 56.54
+wrote /home/coder/stage0/outputs/cub/ce/seed1/eval.json

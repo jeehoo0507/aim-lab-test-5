@@ -1,0 +1,390 @@
+
+==============================================================================
+Stage 0 preflight
+==============================================================================
+[OK  ] torch / CUDA build        torch 2.9.1+cu128, CUDA 12.8, archs sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120
+[WARN] GPU 0                     NVIDIA RTX A5000  sm_86  free 23.1/23.5 GiB  IN USE by pid 686973(6MiB)  [selected]
+[OK  ] write DATA_ROOT           /home/coder/stage0/data
+[OK  ] disk (DATA_ROOT)          228 GiB free at /home/coder/stage0/data
+[OK  ] write OUTPUT_ROOT         /home/coder/stage0/outputs
+[OK  ] write CORRUPTION_ROOT     /home/coder/stage0/data/corruptions
+[OK  ] write HF_HOME             /home/coder/stage0/hf
+[OK  ] /dev/shm                  64 MiB  (small, but fine: data loaders pass batches through pipes, not shared memory)
+[OK  ] timm weights              cached under /home/coder/stage0/hf
+[OK  ] data cub                  prepared
+[OK  ] data waterbirds           prepared
+[OK  ] CPU                       16 usable (host reports 40; container/affinity limit applied)
+[OK  ] RAM                       60.0 GiB usable (container limit applied)
+[OK  ] memory teacher step       micro-batch 128 x accum 1 = 128, peak 9.6 GiB, 0.29 s/step(128)
+[OK  ] memory kd step            micro-batch 128 x accum 1 = 128, peak 3.4 GiB, 0.14 s/step(128)
+[OK  ] RUNS_PER_GPU (suggested)  5  (GPU memory allows 5, CPU allows 8, RAM allows 14)
+[OK  ] teacher slot cost         3 of 5 slots (max 1 teacher fine-tune per GPU; student runs share the rest)
+[OK  ] rough compute estimate    one teacher run (both datasets) ~0.6 GPU-h of steps; one KD run (both datasets) <= ~0.3 GPU-h (data loading excluded)
+
+NOTE (GPU 0):
+  GPU 0 is used by other processes; free memory above is what is left.
+==============================================================================
+PREFLIGHT OK. Settings written to /home/coder/stage0/outputs/preflight.json
+cub split sizes: {'train_full': 5994, 'test': 5794}
+cub: official train 5994 -> train 5394 / val 600; test 5794
+waterbirds split sizes: {'train': 4795, 'val': 1199, 'test': 5794}
+waterbirds train: 4795  groups [3498, 184, 56, 1057]
+waterbirds val: 1199  groups [467, 466, 133, 133]
+waterbirds test: 5794  groups [2255, 2255, 642, 642]
+cub split sizes: {'train_full': 5994, 'test': 5794}
+cub: official train 5994 -> train 5394 / val 600; test 5794
+waterbirds split sizes: {'train': 4795, 'val': 1199, 'test': 5794}
+waterbirds train: 4795  groups [3498, 184, 56, 1057]
+waterbirds val: 1199  groups [467, 466, 133, 133]
+waterbirds test: 5794  groups [2255, 2255, 642, 642]
+unit tests passed
+
+################ A. pipeline + parallel (RUNS_PER_GPU=3) ################
+43 jobs, 0 already done. GPUs ['0'] x 3 slot(s); a teacher fine-tune uses 3.
+[14:21:29] start   cub/lrsel/teacher_lr5e-05  (gpu 0)
+[14:21:29] start   cub/corruptions
+[14:21:42] done    cub/lrsel/teacher_lr5e-05
+[14:21:42] start   cub/lrsel/teacher_lr0.0001  (gpu 0)
+[14:21:53] done    cub/lrsel/teacher_lr0.0001
+[14:21:53] start   cub/select_lr/teacher
+[14:21:56] done    cub/select_lr/teacher
+[14:21:56] start   waterbirds/lrsel/teacher_lr5e-05  (gpu 0)
+[14:22:07] done    waterbirds/lrsel/teacher_lr5e-05
+[14:22:07] start   waterbirds/lrsel/teacher_lr0.0001  (gpu 0)
+[14:22:18] done    waterbirds/lrsel/teacher_lr0.0001
+[14:22:18] start   waterbirds/select_lr/teacher
+[14:22:20] done    waterbirds/select_lr/teacher
+[14:22:20] start   cub/lrsel/ce_lr5e-05  (gpu 0)
+[14:22:20] start   cub/lrsel/ce_lr0.0001  (gpu 0)
+[14:22:20] start   cub/lrsel/ce_lr0.0003  (gpu 0)
+[14:22:21] done    cub/corruptions
+[14:22:21] start   waterbirds/corruptions
+[14:22:30] done    cub/lrsel/ce_lr5e-05
+[14:22:30] done    cub/lrsel/ce_lr0.0001
+[14:22:30] done    cub/lrsel/ce_lr0.0003
+[14:22:30] start   cub/select_lr/student
+[14:22:33] done    cub/select_lr/student
+[14:22:33] start   waterbirds/lrsel/ce_lr5e-05  (gpu 0)
+[14:22:33] start   waterbirds/lrsel/ce_lr0.0001  (gpu 0)
+[14:22:33] start   waterbirds/lrsel/ce_lr0.0003  (gpu 0)
+[14:22:42] done    waterbirds/lrsel/ce_lr5e-05
+[14:22:42] done    waterbirds/lrsel/ce_lr0.0001
+[14:22:42] done    waterbirds/lrsel/ce_lr0.0003
+[14:22:42] start   waterbirds/select_lr/student
+[14:22:45] done    waterbirds/select_lr/student
+[14:22:45] start   cub/kd/seed0  (gpu 0)
+[14:22:45] start   cub/kd/seed1  (gpu 0)
+[14:22:45] start   cub/kd/seed2  (gpu 0)
+[14:22:57] done    cub/kd/seed0
+[14:22:57] done    cub/kd/seed1
+[14:22:57] done    cub/kd/seed2
+[14:22:57] start   waterbirds/kd/seed0  (gpu 0)
+[14:22:57] start   waterbirds/kd/seed1  (gpu 0)
+[14:22:57] start   waterbirds/kd/seed2  (gpu 0)
+[14:23:08] done    waterbirds/kd/seed0
+[14:23:08] start   cub/ce/seed1  (gpu 0)
+[14:23:09] done    waterbirds/kd/seed1
+[14:23:09] done    waterbirds/kd/seed2
+[14:23:09] start   cub/ce/seed2  (gpu 0)
+[14:23:09] start   waterbirds/ce/seed1  (gpu 0)
+[14:23:13] done    waterbirds/corruptions
+[14:23:17] done    cub/ce/seed1
+[14:23:17] start   waterbirds/ce/seed2  (gpu 0)
+[14:23:18] done    cub/ce/seed2
+[14:23:18] done    waterbirds/ce/seed1
+[14:23:18] start   cub/diagnose_teacher  (gpu 0)
+[14:23:18] start   waterbirds/diagnose_teacher  (gpu 0)
+[14:23:26] done    waterbirds/ce/seed2
+[14:23:26] start   cub/eval/teacher/seed0  (gpu 0)
+[14:23:28] done    cub/diagnose_teacher
+[14:23:28] done    waterbirds/diagnose_teacher
+[14:23:28] start   cub/eval/ce/seed0  (gpu 0)
+[14:23:28] start   cub/eval/ce/seed1  (gpu 0)
+[14:23:38] done    cub/eval/teacher/seed0
+[14:23:38] done    cub/eval/ce/seed0
+[14:23:38] done    cub/eval/ce/seed1
+[14:23:38] start   cub/eval/ce/seed2  (gpu 0)
+[14:23:38] start   cub/eval/kd/seed0  (gpu 0)
+[14:23:38] start   cub/eval/kd/seed1  (gpu 0)
+[14:23:49] done    cub/eval/ce/seed2
+[14:23:49] done    cub/eval/kd/seed0
+[14:23:49] done    cub/eval/kd/seed1
+[14:23:49] start   cub/eval/kd/seed2  (gpu 0)
+[14:23:49] start   waterbirds/eval/teacher/seed0  (gpu 0)
+[14:23:49] start   waterbirds/eval/ce/seed0  (gpu 0)
+[14:23:59] done    cub/eval/kd/seed2
+[14:23:59] done    waterbirds/eval/ce/seed0
+[14:23:59] start   waterbirds/eval/ce/seed1  (gpu 0)
+[14:23:59] start   waterbirds/eval/ce/seed2  (gpu 0)
+[14:24:01] done    waterbirds/eval/teacher/seed0
+[14:24:01] start   waterbirds/eval/kd/seed0  (gpu 0)
+[14:24:09] done    waterbirds/eval/ce/seed1
+[14:24:09] done    waterbirds/eval/ce/seed2
+[14:24:09] start   waterbirds/eval/kd/seed1  (gpu 0)
+[14:24:09] start   waterbirds/eval/kd/seed2  (gpu 0)
+[14:24:11] done    waterbirds/eval/kd/seed0
+[14:24:19] done    waterbirds/eval/kd/seed1
+[14:24:19] done    waterbirds/eval/kd/seed2
+[14:24:19] start   summarize
+[14:24:22] done    summarize
+
+finished. failed/blocked: none
+waterbirds/eval/kd/seed1           DONE                      0:00:10              
+waterbirds/kd/seed2                DONE        1/1    67.19  0:00:12              
+waterbirds/eval/kd/seed2           DONE                      0:00:10              
+summarize                          DONE                      0:00:02              
+totals: done=43
+[pipeline outputs]
+  ok   cub/teacher/seed0 DONE
+  ok   cub/teacher/seed0 config matches its path
+  ok   cub/teacher/seed0 log.csv has one row per epoch
+  ok   cub/teacher/seed0 recipe (LS=0.0, mixup=0.0)
+  ok   cub/teacher/seed0 eval.json
+  ok   cub/teacher/seed0 75 corruption conditions
+  ok   cub/teacher/seed0 evaluated best.pt
+  ok   cub/teacher/seed0 train.log contains only its own run(s)
+  ok   cub/ce/seed0 DONE
+  ok   cub/ce/seed0 config matches its path
+  ok   cub/ce/seed0 log.csv has one row per epoch
+  ok   cub/ce/seed0 recipe (LS=0.1, mixup=0.8)
+  ok   cub/ce/seed0 eval.json
+  ok   cub/ce/seed0 75 corruption conditions
+  ok   cub/ce/seed0 evaluated last.pt
+  ok   cub/ce/seed0 train.log contains only its own run(s)
+  ok   cub/ce/seed1 DONE
+  ok   cub/ce/seed1 config matches its path
+  ok   cub/ce/seed1 log.csv has one row per epoch
+  ok   cub/ce/seed1 recipe (LS=0.1, mixup=0.8)
+  ok   cub/ce/seed1 eval.json
+  ok   cub/ce/seed1 75 corruption conditions
+  ok   cub/ce/seed1 evaluated last.pt
+  ok   cub/ce/seed1 train.log contains only its own run(s)
+  ok   cub/ce/seed2 DONE
+  ok   cub/ce/seed2 config matches its path
+  ok   cub/ce/seed2 log.csv has one row per epoch
+  ok   cub/ce/seed2 recipe (LS=0.1, mixup=0.8)
+  ok   cub/ce/seed2 eval.json
+  ok   cub/ce/seed2 75 corruption conditions
+  ok   cub/ce/seed2 evaluated last.pt
+  ok   cub/ce/seed2 train.log contains only its own run(s)
+  ok   cub/kd/seed0 DONE
+  ok   cub/kd/seed0 config matches its path
+  ok   cub/kd/seed0 log.csv has one row per epoch
+  ok   cub/kd/seed0 logs the KD term
+  ok   cub/kd/seed0 used the cub teacher
+  ok   cub/kd/seed0 recipe (LS=0.1, mixup=0.8)
+  ok   cub/kd/seed0 eval.json
+  ok   cub/kd/seed0 75 corruption conditions
+  ok   cub/kd/seed0 evaluated last.pt
+  ok   cub/kd/seed0 train.log contains only its own run(s)
+  ok   cub/kd/seed1 DONE
+  ok   cub/kd/seed1 config matches its path
+  ok   cub/kd/seed1 log.csv has one row per epoch
+  ok   cub/kd/seed1 logs the KD term
+  ok   cub/kd/seed1 used the cub teacher
+  ok   cub/kd/seed1 recipe (LS=0.1, mixup=0.8)
+  ok   cub/kd/seed1 eval.json
+  ok   cub/kd/seed1 75 corruption conditions
+  ok   cub/kd/seed1 evaluated last.pt
+  ok   cub/kd/seed1 train.log contains only its own run(s)
+  ok   cub/kd/seed2 DONE
+  ok   cub/kd/seed2 config matches its path
+  ok   cub/kd/seed2 log.csv has one row per epoch
+  ok   cub/kd/seed2 logs the KD term
+  ok   cub/kd/seed2 used the cub teacher
+  ok   cub/kd/seed2 recipe (LS=0.1, mixup=0.8)
+  ok   cub/kd/seed2 eval.json
+  ok   cub/kd/seed2 75 corruption conditions
+  ok   cub/kd/seed2 evaluated last.pt
+  ok   cub/kd/seed2 train.log contains only its own run(s)
+  ok   cub teacher diagnosis.json
+  ok   waterbirds/teacher/seed0 DONE
+  ok   waterbirds/teacher/seed0 config matches its path
+  ok   waterbirds/teacher/seed0 log.csv has one row per epoch
+  ok   waterbirds/teacher/seed0 recipe (LS=0.0, mixup=0.0)
+  ok   waterbirds/teacher/seed0 eval.json
+  ok   waterbirds/teacher/seed0 75 corruption conditions
+  ok   waterbirds/teacher/seed0 4 group accs + WGA
+  ok   waterbirds/teacher/seed0 evaluated best.pt
+  ok   waterbirds/teacher/seed0 train.log contains only its own run(s)
+  ok   waterbirds/ce/seed0 DONE
+  ok   waterbirds/ce/seed0 config matches its path
+  ok   waterbirds/ce/seed0 log.csv has one row per epoch
+  ok   waterbirds/ce/seed0 recipe (LS=0.1, mixup=0.8)
+  ok   waterbirds/ce/seed0 eval.json
+  ok   waterbirds/ce/seed0 75 corruption conditions
+  ok   waterbirds/ce/seed0 4 group accs + WGA
+  ok   waterbirds/ce/seed0 evaluated last.pt
+  ok   waterbirds/ce/seed0 train.log contains only its own run(s)
+  ok   waterbirds/ce/seed1 DONE
+  ok   waterbirds/ce/seed1 config matches its path
+  ok   waterbirds/ce/seed1 log.csv has one row per epoch
+  ok   waterbirds/ce/seed1 recipe (LS=0.1, mixup=0.8)
+  ok   waterbirds/ce/seed1 eval.json
+  ok   waterbirds/ce/seed1 75 corruption conditions
+  ok   waterbirds/ce/seed1 4 group accs + WGA
+  ok   waterbirds/ce/seed1 evaluated last.pt
+  ok   waterbirds/ce/seed1 train.log contains only its own run(s)
+  ok   waterbirds/ce/seed2 DONE
+  ok   waterbirds/ce/seed2 config matches its path
+  ok   waterbirds/ce/seed2 log.csv has one row per epoch
+  ok   waterbirds/ce/seed2 recipe (LS=0.1, mixup=0.8)
+  ok   waterbirds/ce/seed2 eval.json
+  ok   waterbirds/ce/seed2 75 corruption conditions
+  ok   waterbirds/ce/seed2 4 group accs + WGA
+  ok   waterbirds/ce/seed2 evaluated last.pt
+  ok   waterbirds/ce/seed2 train.log contains only its own run(s)
+  ok   waterbirds/kd/seed0 DONE
+  ok   waterbirds/kd/seed0 config matches its path
+  ok   waterbirds/kd/seed0 log.csv has one row per epoch
+  ok   waterbirds/kd/seed0 logs the KD term
+  ok   waterbirds/kd/seed0 used the waterbirds teacher
+  ok   waterbirds/kd/seed0 recipe (LS=0.1, mixup=0.8)
+  ok   waterbirds/kd/seed0 eval.json
+  ok   waterbirds/kd/seed0 75 corruption conditions
+  ok   waterbirds/kd/seed0 4 group accs + WGA
+  ok   waterbirds/kd/seed0 evaluated last.pt
+  ok   waterbirds/kd/seed0 train.log contains only its own run(s)
+  ok   waterbirds/kd/seed1 DONE
+  ok   waterbirds/kd/seed1 config matches its path
+  ok   waterbirds/kd/seed1 log.csv has one row per epoch
+  ok   waterbirds/kd/seed1 logs the KD term
+  ok   waterbirds/kd/seed1 used the waterbirds teacher
+  ok   waterbirds/kd/seed1 recipe (LS=0.1, mixup=0.8)
+  ok   waterbirds/kd/seed1 eval.json
+  ok   waterbirds/kd/seed1 75 corruption conditions
+  ok   waterbirds/kd/seed1 4 group accs + WGA
+  ok   waterbirds/kd/seed1 evaluated last.pt
+  ok   waterbirds/kd/seed1 train.log contains only its own run(s)
+  ok   waterbirds/kd/seed2 DONE
+  ok   waterbirds/kd/seed2 config matches its path
+  ok   waterbirds/kd/seed2 log.csv has one row per epoch
+  ok   waterbirds/kd/seed2 logs the KD term
+  ok   waterbirds/kd/seed2 used the waterbirds teacher
+  ok   waterbirds/kd/seed2 recipe (LS=0.1, mixup=0.8)
+  ok   waterbirds/kd/seed2 eval.json
+  ok   waterbirds/kd/seed2 75 corruption conditions
+  ok   waterbirds/kd/seed2 4 group accs + WGA
+  ok   waterbirds/kd/seed2 evaluated last.pt
+  ok   waterbirds/kd/seed2 train.log contains only its own run(s)
+  ok   waterbirds teacher diagnosis.json
+  ok   every main run dir holds its own run (duplicates: [])
+  ok   cub/teacher/seed0 promoted from the lr sweep
+  ok   waterbirds/teacher/seed0 promoted from the lr sweep
+  ok   cub/ce/seed0 promoted from the lr sweep
+  ok   waterbirds/ce/seed0 promoted from the lr sweep
+[parallel execution]
+  ok   max concurrent student/eval jobs on one GPU = 3 (want >= 2)
+  ok   slot load never above RUNS_PER_GPU=3 (max 3, teacher=3)
+  ok   at most one teacher fine-tune per GPU at a time
+  ok   all scheduler jobs done
+  ok   results/stage0_summary.md and lr_selection.md written
+
+################ B. guards ################
+  ok   rerun of a finished run is a no-op
+  ok   same run dir, different lr -> refused: [error] /home/coder/aim-lab-test-5/smoke/run/outputs/cub/ce/seed1 already holds a run with different settings:
+  ok   KD without a teacher -> refused: [error] KD needs the fine-tuned teacher /home/coder/aim-lab-test-5/smoke/run/guard_outputs/cub/teacher/seed0/b
+  ok   KD with the other dataset's teacher -> refused: [error] teacher checkpoint /home/coder/aim-lab-test-5/smoke/run/guard_outputs/cub/teacher/seed0/best.pt was tr
+  ok   wrong split sizes -> refused: [error] waterbirds split sizes {'train': 4795, 'val': 1199, 'test': 5793} != expected {'train': 4795, 'val': 1
+
+################ C. kill -9 and resume ################
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+  ok   killed after epoch 1 (no DONE yet)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[resume]
+  ok   resumed run finished with epochs ['0', '1', '2'] exactly once each
+  ok   train.log shows the run resumed from last.pt
+  info max |w_resumed - w_uninterrupted| = 0; val acc resumed ['40.625', '65.625', '78.125'] vs uninterrupted ['40.625', '65.625', '78.125']
+  info GPU kernels are not bit-deterministic; weight equality is reported, not enforced
+
+SMOKE TEST PASSED in 242s. Outputs: /home/coder/aim-lab-test-5/smoke/run
+Summary: /home/coder/aim-lab-test-5/smoke/run/results/stage0_summary.md
+43 jobs, 0 already done. GPUs ['0'] x 5 slot(s); a teacher fine-tune uses 3.
+[14:25:31] start   cub/lrsel/teacher_lr5e-05  (gpu 0)
+[14:25:31] start   cub/lrsel/ce_lr5e-05  (gpu 0)
+[14:25:31] start   cub/lrsel/ce_lr0.0001  (gpu 0)
+[14:25:31] start   cub/corruptions
+[14:49:46] done    cub/corruptions
+[14:49:46] start   waterbirds/corruptions
+[15:12:06] done    cub/lrsel/ce_lr5e-05
+[15:12:06] done    cub/lrsel/ce_lr0.0001
+[15:12:06] start   cub/lrsel/ce_lr0.0003  (gpu 0)
+[15:12:06] start   waterbirds/lrsel/ce_lr5e-05  (gpu 0)
+[15:13:47] done    waterbirds/corruptions
+[15:27:15] done    cub/lrsel/teacher_lr5e-05
+[15:27:15] start   cub/lrsel/teacher_lr0.0001  (gpu 0)
+[15:49:20] done    waterbirds/lrsel/ce_lr5e-05
+[15:49:20] start   waterbirds/lrsel/ce_lr0.0001  (gpu 0)
+[15:53:06] done    cub/lrsel/ce_lr0.0003
+[15:53:06] start   cub/select_lr/student
+[15:53:09] done    cub/select_lr/student
+[15:53:09] start   waterbirds/lrsel/ce_lr0.0003  (gpu 0)
+[16:26:22] done    waterbirds/lrsel/ce_lr0.0001
+[16:26:22] start   cub/ce/seed1  (gpu 0)
+[16:27:07] done    cub/lrsel/teacher_lr0.0001
+[16:27:07] start   cub/select_lr/teacher
+[16:27:10] done    cub/select_lr/teacher
+[16:27:10] start   waterbirds/lrsel/teacher_lr5e-05  (gpu 0)
+[16:30:16] done    waterbirds/lrsel/ce_lr0.0003
+[16:30:16] start   waterbirds/select_lr/student
+[16:30:19] done    waterbirds/select_lr/student
+[16:30:19] start   cub/kd/seed0  (gpu 0)
+[17:07:07] done    cub/ce/seed1
+[17:07:07] start   cub/kd/seed1  (gpu 0)
+[17:14:23] done    cub/kd/seed0
+[17:14:23] start   cub/kd/seed2  (gpu 0)
+[17:30:42] done    waterbirds/lrsel/teacher_lr5e-05
+[17:30:42] start   waterbirds/lrsel/teacher_lr0.0001  (gpu 0)
+[17:53:47] done    cub/kd/seed1
+[17:53:47] start   cub/ce/seed2  (gpu 0)
+[18:00:48] done    cub/kd/seed2
+[18:00:48] start   waterbirds/ce/seed1  (gpu 0)
+[18:31:56] done    waterbirds/lrsel/teacher_lr0.0001
+[18:31:56] start   waterbirds/select_lr/teacher
+[18:31:59] done    waterbirds/select_lr/teacher
+[18:31:59] start   waterbirds/ce/seed2  (gpu 0)
+[18:31:59] start   cub/diagnose_teacher  (gpu 0)
+[18:31:59] start   cub/eval/teacher/seed0  (gpu 0)
+[18:32:59] done    cub/diagnose_teacher
+[18:32:59] start   waterbirds/kd/seed0  (gpu 0)
+[18:35:15] done    cub/ce/seed2
+[18:35:15] start   waterbirds/kd/seed1  (gpu 0)
+[18:37:10] done    cub/eval/teacher/seed0
+[18:37:10] start   waterbirds/kd/seed2  (gpu 0)
+[18:39:51] done    waterbirds/ce/seed1
+[18:39:51] start   waterbirds/diagnose_teacher  (gpu 0)
+[18:40:46] done    waterbirds/diagnose_teacher
+[18:40:46] start   cub/eval/ce/seed0  (gpu 0)
+[18:44:52] done    cub/eval/ce/seed0
+[18:44:52] start   cub/eval/ce/seed1  (gpu 0)
+[18:48:27] done    cub/eval/ce/seed1
+[18:48:27] start   cub/eval/ce/seed2  (gpu 0)
+[18:52:08] done    cub/eval/ce/seed2
+[18:52:08] start   cub/eval/kd/seed0  (gpu 0)
+[18:55:49] done    cub/eval/kd/seed0
+[18:55:49] start   cub/eval/kd/seed1  (gpu 0)
+[18:59:30] done    cub/eval/kd/seed1
+[18:59:30] start   cub/eval/kd/seed2  (gpu 0)
+[19:03:10] done    cub/eval/kd/seed2
+[19:03:10] start   waterbirds/eval/teacher/seed0  (gpu 0)
+[19:08:36] done    waterbirds/eval/teacher/seed0
+[19:08:36] start   waterbirds/eval/ce/seed0  (gpu 0)
+[19:12:17] done    waterbirds/eval/ce/seed0
+[19:12:17] start   waterbirds/eval/ce/seed1  (gpu 0)
+[19:15:58] done    waterbirds/eval/ce/seed1
+[19:17:13] done    waterbirds/ce/seed2
+[19:17:13] start   waterbirds/eval/ce/seed2  (gpu 0)
+[19:20:23] done    waterbirds/eval/ce/seed2
+[19:23:19] done    waterbirds/kd/seed0
+[19:23:19] start   waterbirds/eval/kd/seed0  (gpu 0)
+[19:25:04] done    waterbirds/kd/seed1
+[19:25:04] start   waterbirds/eval/kd/seed1  (gpu 0)
+[19:26:14] done    waterbirds/eval/kd/seed0
+[19:26:29] done    waterbirds/kd/seed2
+[19:26:29] start   waterbirds/eval/kd/seed2  (gpu 0)
+[19:27:54] done    waterbirds/eval/kd/seed1
+[19:29:15] done    waterbirds/eval/kd/seed2
+[19:29:15] start   summarize
+[19:29:17] done    summarize
+
+finished. failed/blocked: none

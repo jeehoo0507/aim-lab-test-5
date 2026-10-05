@@ -1,0 +1,5 @@
+
+===== 2026-10-03 18:39:51 gpu=0 /home/coder/aim-lab-test-5/.venv/bin/python -m stage0.diagnose_teacher --dataset waterbirds
+train_view {'n': 4795, 'acc': 0.9885, 'p_true_tau1': 0.9809, 'wrong_entropy_norm_tau1': None, 'p_true_tau4': 0.8728, 'wrong_entropy_norm_tau4': None}
+test_clean {'n': 5794, 'acc': 0.9363, 'p_true_tau1': 0.9285, 'wrong_entropy_norm_tau1': None, 'p_true_tau4': 0.8298, 'wrong_entropy_norm_tau4': None}
+wrote /home/coder/stage0/outputs/waterbirds/teacher/seed0/diagnosis.json

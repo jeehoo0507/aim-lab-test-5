@@ -1,0 +1,25 @@
+{
+  "dataset": "waterbirds",
+  "num_classes": 2,
+  "seed": 0,
+  "teacher_ckpt": "/home/coder/stage0/outputs/waterbirds/teacher/seed0/best.pt",
+  "teacher_epoch": 21,
+  "teacher_val_acc": 93.99499297142029,
+  "test_clean": {
+    "acc": 0.9363134276838109,
+    "n": 5794,
+    "p_true_tau1": 0.9284862682489526,
+    "p_true_tau4": 0.8297575093142086,
+    "wrong_entropy_norm_tau1": null,
+    "wrong_entropy_norm_tau4": null
+  },
+  "train_view": {
+    "acc": 0.9885297184567258,
+    "n": 4795,
+    "p_true_tau1": 0.9809207386951876,
+    "p_true_tau4": 0.8727661427153303,
+    "wrong_entropy_norm_tau1": null,
+    "wrong_entropy_norm_tau4": null
+  },
+  "train_view_transform": "RRC(0.08-1,bicubic)+hflip+RandAugment(rand-m9-mstd0.5-inc1)+RandomErasing(0.25); no mixup/cutmix"
+}

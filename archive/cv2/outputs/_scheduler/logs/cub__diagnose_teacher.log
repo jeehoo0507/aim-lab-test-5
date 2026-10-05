@@ -1,0 +1,5 @@
+
+===== 2026-10-03 18:31:59 gpu=0 /home/coder/aim-lab-test-5/.venv/bin/python -m stage0.diagnose_teacher --dataset cub
+train_view {'n': 5394, 'acc': 0.8472, 'p_true_tau1': 0.7117, 'wrong_entropy_norm_tau1': 0.5546, 'p_true_tau4': 0.044, 'wrong_entropy_norm_tau4': 0.9858}
+test_clean {'n': 5794, 'acc': 0.8488, 'p_true_tau1': 0.7365, 'wrong_entropy_norm_tau1': 0.4898, 'p_true_tau4': 0.0473, 'wrong_entropy_norm_tau4': 0.9845}
+wrote /home/coder/stage0/outputs/cub/teacher/seed0/diagnosis.json

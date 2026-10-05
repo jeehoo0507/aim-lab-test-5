@@ -1,0 +1,3 @@
+/home/coder/stage0/outputs/waterbirds/tam_r_g0_k0.15/seed2: clean 92.60  WGA 73.52  groups [99.69, 90.38, 73.52, 94.55]
+  corruption acc (75 conditions x 1000 images): 77.10
+wrote /home/coder/stage0/outputs/waterbirds/tam_r_g0_k0.15/seed2/eval.json

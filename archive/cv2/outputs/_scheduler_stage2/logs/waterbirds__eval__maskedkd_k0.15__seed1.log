@@ -1,0 +1,5 @@
+
+===== 2026-10-04 09:57:38 gpu=0 /home/coder/aim-lab-stage3/.venv/bin/python -m stage0.evaluate --dataset waterbirds --mode maskedkd_k0.15 --seed 1
+/home/coder/stage0/outputs/waterbirds/maskedkd_k0.15/seed1: clean 90.70  WGA 55.61  groups [99.87, 90.86, 55.61, 92.99]
+  corruption acc (75 conditions x 1000 images): 73.30
+wrote /home/coder/stage0/outputs/waterbirds/maskedkd_k0.15/seed1/eval.json

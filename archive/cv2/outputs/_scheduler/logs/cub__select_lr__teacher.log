@@ -1,0 +1,3 @@
+
+===== 2026-10-03 16:27:07 gpu=None /home/coder/aim-lab-test-5/.venv/bin/python -m stage0.select_lr --dataset cub --which teacher
+cub teacher: lr=5e-05  scores={'5e-05': 86.33333444595337, '0.0001': 85.83333492279053}  (promoted)

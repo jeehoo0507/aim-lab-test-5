@@ -1,0 +1,142 @@
+  64/4795 images (2s)
+  1344/4795 images (5s)
+  2624/4795 images (8s)
+  3904/4795 images (12s)
+wrote /home/coder/stage0/outputs/waterbirds/attribution_cache (4795 images, 14s)
+teacher /home/coder/stage0/outputs/waterbirds/teacher/seed0/best.pt
+student /home/coder/stage0/outputs/waterbirds/kd/seed0/last.pt
+  train_view: 64/4795 images (3s)
+  train_view: 704/4795 images (13s)
+  train_view: 1344/4795 images (23s)
+  train_view: 1984/4795 images (33s)
+  train_view: 2624/4795 images (43s)
+  train_view: 3264/4795 images (53s)
+  train_view: 3904/4795 images (63s)
+  train_view: 4544/4795 images (73s)
+train_view: full-teacher acc 98.85% on 4795 images
+  test_clean: 64/5794 images (2s)
+  test_clean: 704/5794 images (11s)
+  test_clean: 1344/5794 images (19s)
+  test_clean: 1984/5794 images (27s)
+  test_clean: 2624/5794 images (36s)
+  test_clean: 3264/5794 images (44s)
+  test_clean: 3904/5794 images (53s)
+  test_clean: 4544/5794 images (61s)
+  test_clean: 5184/5794 images (69s)
+  test_clean: 5794/5794 images (77s)
+test_clean: full-teacher acc 93.63% on 5794 images
+wrote results/stage1_fidelity.csv/.md/.png
+27 jobs, 2 already done. GPUs ['0'] x 5 slot(s); a teacher fine-tune uses 3.
+[08:19:18] start   waterbirds/maskedkd_k0.3/seed0  (gpu 0)
+[08:19:18] start   waterbirds/maskedkd_k0.3/seed1  (gpu 0)
+[08:19:18] start   waterbirds/maskedkd_k0.15/seed0  (gpu 0)
+[08:19:18] start   waterbirds/maskedkd_k0.15/seed1  (gpu 0)
+[08:19:18] start   waterbirds/rollout_k0.3/seed0  (gpu 0)
+[09:06:33] done    waterbirds/maskedkd_k0.15/seed1
+[09:06:33] start   waterbirds/rollout_k0.3/seed1  (gpu 0)
+[09:06:48] done    waterbirds/maskedkd_k0.15/seed0
+[09:06:48] start   waterbirds/rollout_k0.15/seed0  (gpu 0)
+[09:06:53] done    waterbirds/maskedkd_k0.3/seed0
+[09:06:53] done    waterbirds/maskedkd_k0.3/seed1
+[09:06:53] start   waterbirds/rollout_k0.15/seed1  (gpu 0)
+[09:06:53] start   waterbirds/tam_k0.3/seed0  (gpu 0)
+[09:07:34] done    waterbirds/rollout_k0.3/seed0
+[09:07:34] start   waterbirds/tam_k0.3/seed1  (gpu 0)
+[09:53:27] done    waterbirds/tam_k0.3/seed0
+[09:53:27] start   waterbirds/tam_k0.15/seed0  (gpu 0)
+[09:53:37] done    waterbirds/rollout_k0.15/seed0
+[09:53:37] start   waterbirds/tam_k0.15/seed1  (gpu 0)
+[09:53:42] done    waterbirds/rollout_k0.15/seed1
+[09:53:42] start   waterbirds/eval/maskedkd_k0.3/seed0  (gpu 0)
+[09:53:52] done    waterbirds/tam_k0.3/seed1
+[09:53:52] start   waterbirds/eval/maskedkd_k0.3/seed1  (gpu 0)
+[09:54:07] done    waterbirds/rollout_k0.3/seed1
+[09:54:07] start   waterbirds/eval/maskedkd_k0.15/seed0  (gpu 0)
+[09:57:38] done    waterbirds/eval/maskedkd_k0.3/seed0
+[09:57:38] start   waterbirds/eval/maskedkd_k0.15/seed1  (gpu 0)
+[09:57:48] done    waterbirds/eval/maskedkd_k0.3/seed1
+[09:57:48] start   waterbirds/eval/rollout_k0.3/seed0  (gpu 0)
+[09:58:03] done    waterbirds/eval/maskedkd_k0.15/seed0
+[09:58:03] start   waterbirds/eval/rollout_k0.3/seed1  (gpu 0)
+[10:01:33] done    waterbirds/eval/maskedkd_k0.15/seed1
+[10:01:33] start   waterbirds/eval/rollout_k0.15/seed0  (gpu 0)
+[10:01:44] done    waterbirds/eval/rollout_k0.3/seed0
+[10:01:44] start   waterbirds/eval/rollout_k0.15/seed1  (gpu 0)
+[10:01:59] done    waterbirds/eval/rollout_k0.3/seed1
+[10:01:59] start   waterbirds/eval/tam_k0.3/seed0  (gpu 0)
+[10:05:29] done    waterbirds/eval/rollout_k0.15/seed0
+[10:05:29] start   waterbirds/eval/tam_k0.3/seed1  (gpu 0)
+[10:05:39] done    waterbirds/eval/rollout_k0.15/seed1
+[10:05:54] done    waterbirds/eval/tam_k0.3/seed0
+[10:08:25] done    waterbirds/eval/tam_k0.3/seed1
+[10:33:08] done    waterbirds/tam_k0.15/seed0
+[10:33:08] start   waterbirds/eval/tam_k0.15/seed0  (gpu 0)
+[10:33:18] done    waterbirds/tam_k0.15/seed1
+[10:33:18] start   waterbirds/eval/tam_k0.15/seed1  (gpu 0)
+[10:35:54] done    waterbirds/eval/tam_k0.15/seed0
+[10:36:04] done    waterbirds/eval/tam_k0.15/seed1
+[10:36:04] start   summarize_stage2
+[10:36:12] done    summarize_stage2
+
+finished. failed/blocked: none
+38 jobs, 9 already done. GPUs ['0'] x 5 slot(s); a teacher fine-tune uses 3.
+[10:36:17] start   waterbirds/maskedkd_k0.5/seed0  (gpu 0)
+[10:36:17] start   waterbirds/maskedkd_k0.5/seed1  (gpu 0)
+[10:36:17] start   waterbirds/maskedkd_k0.5/seed2  (gpu 0)
+[10:36:17] start   waterbirds/maskedkd_k0.3/seed2  (gpu 0)
+[10:36:17] start   waterbirds/maskedkd_k0.15/seed2  (gpu 0)
+[11:23:08] done    waterbirds/maskedkd_k0.15/seed2
+[11:23:08] start   waterbirds/random_k0.5/seed0  (gpu 0)
+[11:23:38] done    waterbirds/maskedkd_k0.3/seed2
+[11:23:38] start   waterbirds/random_k0.5/seed1  (gpu 0)
+[11:24:33] done    waterbirds/maskedkd_k0.5/seed2
+[11:24:33] start   waterbirds/random_k0.5/seed2  (gpu 0)
+[11:24:38] done    waterbirds/maskedkd_k0.5/seed0
+[11:24:38] done    waterbirds/maskedkd_k0.5/seed1
+[11:24:38] start   waterbirds/random_k0.3/seed0  (gpu 0)
+[11:24:38] start   waterbirds/random_k0.3/seed1  (gpu 0)
+[12:11:23] done    waterbirds/random_k0.3/seed0
+[12:11:23] start   waterbirds/random_k0.3/seed2  (gpu 0)
+[12:11:33] done    waterbirds/random_k0.3/seed1
+[12:11:33] start   waterbirds/random_k0.15/seed0  (gpu 0)
+[12:11:43] done    waterbirds/random_k0.5/seed0
+[12:11:43] start   waterbirds/random_k0.15/seed1  (gpu 0)
+[12:11:53] done    waterbirds/random_k0.5/seed1
+[12:11:53] start   waterbirds/random_k0.15/seed2  (gpu 0)
+[12:12:38] done    waterbirds/random_k0.5/seed2
+[12:12:38] start   waterbirds/eval/maskedkd_k0.5/seed0  (gpu 0)
+[12:16:14] done    waterbirds/eval/maskedkd_k0.5/seed0
+[12:16:14] start   waterbirds/eval/maskedkd_k0.5/seed1  (gpu 0)
+[12:19:50] done    waterbirds/eval/maskedkd_k0.5/seed1
+[12:19:50] start   waterbirds/eval/maskedkd_k0.5/seed2  (gpu 0)
+[12:23:31] done    waterbirds/eval/maskedkd_k0.5/seed2
+[12:23:31] start   waterbirds/eval/maskedkd_k0.3/seed2  (gpu 0)
+[12:27:12] done    waterbirds/eval/maskedkd_k0.3/seed2
+[12:27:12] start   waterbirds/eval/maskedkd_k0.15/seed2  (gpu 0)
+[12:30:53] done    waterbirds/eval/maskedkd_k0.15/seed2
+[12:30:53] start   waterbirds/eval/random_k0.5/seed0  (gpu 0)
+[12:34:33] done    waterbirds/eval/random_k0.5/seed0
+[12:34:33] start   waterbirds/eval/random_k0.5/seed1  (gpu 0)
+[12:38:09] done    waterbirds/eval/random_k0.5/seed1
+[12:38:09] start   waterbirds/eval/random_k0.5/seed2  (gpu 0)
+[12:41:45] done    waterbirds/eval/random_k0.5/seed2
+[12:41:45] start   waterbirds/eval/random_k0.3/seed0  (gpu 0)
+[12:45:26] done    waterbirds/eval/random_k0.3/seed0
+[12:45:26] start   waterbirds/eval/random_k0.3/seed1  (gpu 0)
+[12:49:01] done    waterbirds/eval/random_k0.3/seed1
+[12:56:53] done    waterbirds/random_k0.3/seed2
+[12:56:53] start   waterbirds/eval/random_k0.3/seed2  (gpu 0)
+[12:56:58] done    waterbirds/random_k0.15/seed0
+[12:56:58] start   waterbirds/eval/random_k0.15/seed0  (gpu 0)
+[12:57:08] done    waterbirds/random_k0.15/seed1
+[12:57:08] start   waterbirds/eval/random_k0.15/seed1  (gpu 0)
+[12:57:13] done    waterbirds/random_k0.15/seed2
+[12:57:13] start   waterbirds/eval/random_k0.15/seed2  (gpu 0)
+[13:00:08] done    waterbirds/eval/random_k0.3/seed2
+[13:00:13] done    waterbirds/eval/random_k0.15/seed0
+[13:00:23] done    waterbirds/eval/random_k0.15/seed1
+[13:00:28] done    waterbirds/eval/random_k0.15/seed2
+[13:00:28] start   summarize_stage2
+[13:00:36] done    summarize_stage2
+
+finished. failed/blocked: none

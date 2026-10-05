@@ -1,0 +1,21 @@
+{
+  "student": {
+    "lr": 0.0001,
+    "metric": "final_val_acc",
+    "scores": {
+      "0.0001": 79.0,
+      "0.0003": 78.833,
+      "5e-05": 76.167
+    },
+    "source": "/home/coder/stage0/outputs/cub/lrsel/ce_lr0.0001/seed0"
+  },
+  "teacher": {
+    "lr": 5e-05,
+    "metric": "best_val_acc",
+    "scores": {
+      "0.0001": 85.83333492279053,
+      "5e-05": 86.33333444595337
+    },
+    "source": "/home/coder/stage0/outputs/cub/lrsel/teacher_lr5e-05/seed0"
+  }
+}

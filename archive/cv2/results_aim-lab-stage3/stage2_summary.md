@@ -1,0 +1,81 @@
+# Stage 2 summary: MaskedKD / Random teacher-token reduction vs Full KD
+
+Test = clean top-1 at the last epoch (mean ± std over seeds). "vs Full KD" = mean difference; per-seed differences pair runs with the same seed (same data order, augmentation and mixup). Teacher GFLOPs: one DeiT-B forward per image with k = round(keep·196) patch tokens (DeiT convention, FlopCounterMode/2).
+
+## Waterbirds
+
+| 기준 | 비율 | teacher GFLOPs/img | 선택 비용 GFLOPs/img | test acc (mean ± std) | Full KD 대비 | seed별 차이 (vs KD) | corruption acc |
+|---|---|---|---|---|---|---|---|
+| Full KD | 1.0 | 17.56 | 0 | 90.97 ± 0.46 | 0 | | 78.72 ± 0.60 |
+| maskedkd | 0.5 | 8.70 | 0.022 | 91.53 ± 0.55 | +0.55 | s0 +0.43, s1 +0.62, s2 +0.60 | 78.59 ± 0.71 |
+| maskedkd | 0.3 | 5.28 | 0.022 | 91.74 ± 0.32 | +0.77 | s0 +0.79, s1 +0.50, s2 +1.02 | 77.45 ± 0.55 |
+| maskedkd | 0.15 | 2.68 | 0.022 | 90.31 ± 0.47 | -0.67 | s0 -0.81, s1 -0.79, s2 -0.40 | 72.86 ± 0.38 |
+| random | 0.5 | 8.70 | 0.000 | 91.03 ± 0.50 | +0.06 | s0 +0.00, s1 +0.09, s2 +0.09 | 77.25 ± 0.58 |
+| random | 0.3 | 5.28 | 0.000 | 89.22 ± 0.46 | -1.75 | s0 -1.78, s1 -1.78, s2 -1.71 | 73.44 ± 0.63 |
+| random | 0.15 | 2.68 | 0.000 | 84.83 ± 0.44 | -6.14 | s0 -5.71, s1 -6.25, s2 -6.47 | 67.85 ± 0.30 |
+| rollout | 0.3 | 5.28 | 0.435 | 92.01 ± 0.44 | +1.04 | s0 +0.98, s1 +0.97, s2 +1.17 | 77.85 ± 0.44 |
+| rollout | 0.15 | 2.68 | 0.435 | 92.11 ± 0.68 | +1.14 | s0 +0.97, s1 +1.38, s2 +1.07 | 74.60 ± 1.03 |
+| tam | 0.3 | 5.28 | 0.022 | 92.00 ± 0.52 | +1.03 | s0 +0.91, s1 +1.05, s2 +1.12 | 78.64 ± 0.33 |
+| tam | 0.15 | 2.68 | 0.022 | 91.52 ± 0.60 | +0.55 | s0 +0.33, s1 +0.62, s2 +0.69 | 75.62 ± 0.33 |
+| tam_r | 0.3 | 5.28 | 0.435 | 92.06 ± 0.47 | +1.08 | s0 +1.00, s1 +1.04, s2 +1.21 | 78.57 ± 0.19 |
+| tam_r | 0.15 | 2.68 | 0.435 | 91.68 ± 0.29 | +0.70 | s0 +0.78, s1 +0.45, s2 +0.88 | 75.68 ± 0.20 |
+| CE | – | 0 | – | 90.06 ± 0.55 | -0.91 | s0 -0.78, s1 -0.79, s2 -1.16 | 76.87 ± 0.80 |
+
+선택 비용 = 토큰 선택에 드는 추가 연산 (student 학습 forward와 마스킹 teacher forward 제외): maskedkd·tam·tam_var는 student 마지막 블록 attention 재계산, rollout은 전 블록 attention + rollout 곱, tam_oracle은 teacher 전체 forward 1회 추가.
+
+### maskedkd − random (same seed, same keep)
+
+- keep 0.5: mean +0.49%p (s0 +0.43, s1 +0.54, s2 +0.52)
+- keep 0.3: mean +2.53%p (s0 +2.57, s1 +2.28, s2 +2.73)
+- keep 0.15: mean +5.48%p (s0 +4.90, s1 +5.45, s2 +6.08)
+
+### Worst-group accuracy (WGA)
+
+| 기준 | 비율 | WGA (mean ± std) | Full KD 대비 | seed별 차이 (vs KD) |
+|---|---|---|---|---|
+| Full KD | 1.0 | 73.99 ± 1.87 | 0 | |
+| maskedkd | 0.5 | 74.51 ± 1.54 | +0.52 | s0 +0.62, s1 +1.25, s2 -0.31 |
+| maskedkd | 0.3 | 72.07 ± 0.63 | -1.92 | s0 -0.62, s1 -2.02, s2 -3.12 |
+| maskedkd | 0.15 | 55.50 ± 2.96 | -18.48 | s0 -19.63, s1 -18.38, s2 -17.45 |
+| random | 0.5 | 71.18 ± 1.35 | -2.80 | s0 -2.49, s1 -2.02, s2 -3.89 |
+| random | 0.3 | 58.00 ± 1.56 | -15.99 | s0 -15.73, s1 -15.89, s2 -16.36 |
+| random | 0.15 | 28.87 ± 0.55 | -45.12 | s0 -42.68, s1 -45.64, s2 -47.04 |
+| rollout | 0.3 | 75.65 ± 1.11 | +1.66 | s0 +2.34, s1 +1.87, s2 +0.78 |
+| rollout | 0.15 | 71.86 ± 2.36 | -2.13 | s0 -2.96, s1 -0.47, s2 -2.96 |
+| tam | 0.3 | 74.30 ± 1.95 | +0.31 | s0 +0.00, s1 +0.93, s2 +0.00 |
+| tam | 0.15 | 65.78 ± 2.11 | -8.20 | s0 -8.57, s1 -7.94, s2 -8.10 |
+| tam_r | 0.3 | 74.77 ± 1.76 | +0.78 | s0 +0.62, s1 +1.87, s2 -0.16 |
+| tam_r | 0.15 | 66.72 ± 1.36 | -7.27 | s0 -6.54, s1 -7.63, s2 -7.63 |
+| CE | – | 71.91 ± 1.75 | -2.08 | s0 -1.71, s1 -2.49, s2 -2.02 |
+
+### Stage 3 pilot: 같은 seed 짝 차이
+
+- tam − maskedkd, keep 0.3: mean +0.26%p (s0 +0.12, s1 +0.55, s2 +0.10)
+- tam − maskedkd, keep 0.15: mean +1.21%p (s0 +1.14, s1 +1.42, s2 +1.09)
+- tam − rollout, keep 0.3: mean -0.01%p (s0 -0.07, s1 +0.09, s2 -0.05)
+- tam − rollout, keep 0.15: mean -0.59%p (s0 -0.64, s1 -0.76, s2 -0.38)
+- tam_r − maskedkd, keep 0.3: mean +0.31%p (s0 +0.21, s1 +0.54, s2 +0.19)
+- tam_r − maskedkd, keep 0.15: mean +1.37%p (s0 +1.59, s1 +1.24, s2 +1.28)
+- tam_r − rollout, keep 0.3: mean +0.04%p (s0 +0.02, s1 +0.07, s2 +0.03)
+- tam_r − rollout, keep 0.15: mean -0.44%p (s0 -0.19, s1 -0.93, s2 -0.19)
+- tam_r − tam, keep 0.3: mean +0.05%p (s0 +0.09, s1 -0.02, s2 +0.09)
+- tam_r − tam, keep 0.15: mean +0.16%p (s0 +0.45, s1 -0.17, s2 +0.19)
+
+학습 중 cache_oracle_overlap (캐시 top-k ∩ 같은 view의 teacher top-k, 에포치마다 첫 micro-batch):
+
+- tam, keep 0.3: mean 53.4% over 100 epochs (epoch 1: 54.6%, epoch 51: 54.2%, epoch 100: 53.3%)
+- tam, keep 0.15: mean 39.3% over 100 epochs (epoch 1: 41.0%, epoch 51: 39.4%, epoch 100: 38.9%)
+- tam_r, keep 0.3: mean 53.4% over 100 epochs (epoch 1: 54.5%, epoch 51: 54.2%, epoch 100: 53.3%)
+- tam_r, keep 0.15: mean 39.3% over 100 epochs (epoch 1: 41.0%, epoch 51: 39.4%, epoch 100: 38.9%)
+
+### 파일럿 판단 (사전 고정; 이긴다 = 짝 seed 모두(≥2) 높고 평균 +0.3%p 이상)
+
+- **Waterbirds: 가능성 있음 → 본 실험(3 seed)으로 확장** — maskedkd 대비 이김: tam @ keep 0.15 (+1.21%p); tam_r @ keep 0.3 (+0.31%p); tam_r @ keep 0.15 (+1.37%p)
+  - tam @ keep 0.15: **rollout 대비 우위 없음** (mean -0.59%p (s0 -0.64, s1 -0.76, s2 -0.38)) → 본 실험에서 S를 rollout으로 바꾼 TAM 검토 근거
+  - tam_r @ keep 0.3: **rollout 대비 우위 없음** (mean +0.04%p (s0 +0.02, s1 +0.07, s2 +0.03)) → 본 실험에서 S를 rollout으로 바꾼 TAM 검토 근거
+  - tam_r @ keep 0.15: **rollout 대비 우위 없음** (mean -0.44%p (s0 -0.19, s1 -0.93, s2 -0.19)) → 본 실험에서 S를 rollout으로 바꾼 TAM 검토 근거
+
+### 여유 구간 판정 (사전 고정: Full KD 대비 maskedkd 평균 −0.5%p 이상 하락하는 가장 큰 비율)
+
+- **Waterbirds: MaskedKD 한계 비율 = 0.15** (Full KD 대비 -0.67%p)
+

@@ -1,0 +1,25 @@
+{
+  "dataset": "cub",
+  "num_classes": 200,
+  "seed": 0,
+  "teacher_ckpt": "/home/coder/stage0/outputs/cub/teacher/seed0/best.pt",
+  "teacher_epoch": 25,
+  "teacher_val_acc": 86.33333444595337,
+  "test_clean": {
+    "acc": 0.8488091128753883,
+    "n": 5794,
+    "p_true_tau1": 0.7364941035799245,
+    "p_true_tau4": 0.04731880250271643,
+    "wrong_entropy_norm_tau1": 0.4898259453076632,
+    "wrong_entropy_norm_tau4": 0.9845179947432401
+  },
+  "train_view": {
+    "acc": 0.8472376714868373,
+    "n": 5394,
+    "p_true_tau1": 0.7117042942761286,
+    "p_true_tau4": 0.04403017610062559,
+    "wrong_entropy_norm_tau1": 0.5546468172542245,
+    "wrong_entropy_norm_tau4": 0.9857858031986644
+  },
+  "train_view_transform": "RRC(0.08-1,bicubic)+hflip+RandAugment(rand-m9-mstd0.5-inc1)+RandomErasing(0.25); no mixup/cutmix"
+}
