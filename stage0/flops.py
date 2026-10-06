@@ -73,7 +73,7 @@ def selection_gflops(criterion, kind="attn_last", num_classes=200):
     """Per-image selection cost of a training criterion beyond the student / masked-teacher forwards."""
     if criterion in ("maskedkd", "rollout", "random"):
         return criterion_gflops(criterion, num_classes)
-    if criterion == "tam_r":                                    # S = student rollout (all blocks hooked)
+    if criterion in ("tam_r", "tam_r_var"):                     # S = student rollout (all blocks hooked)
         return criterion_gflops("rollout", num_classes)
     s_cost = criterion_gflops("maskedkd", num_classes)          # S = student last-block CLS attention (hook)
     if criterion in ("tam", "tam_var"):

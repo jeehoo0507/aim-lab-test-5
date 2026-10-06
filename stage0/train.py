@@ -52,7 +52,7 @@ from stage0.attribution import AttributionCache, crop_maps, teacher_attribution,
 from stage0.datasets import Stage0Dataset, WithIndex, build_eval_transform, build_train_transform
 from stage0.engine import accuracy, amp_ctx, get_device, make_loader, numpy_collate_box_index, predict
 from stage0.losses import Stage0Loss
-from stage0.masking import (TAM_CACHE_CRITERIA, TAM_CRITERIA, TAM_DELTA, TAM_GAP, TRAIN_CRITERIA,
+from stage0.masking import (TAM_BUCKET_CRITERIA, TAM_CACHE_CRITERIA, TAM_CRITERIA, TAM_DELTA, TAM_GAP, TRAIN_CRITERIA,
                             RecordingMixup, StudentMaskSelector, TamSelector, mix_attribution, num_keep,
                             tam_bucket_ks)
 from stage0.models import (create_student, create_teacher, load_finetuned_teacher, teacher_forward,
@@ -112,11 +112,11 @@ def build_config(args, out_root, data_root):
     if not tam and any(v is not None for v in (args.tam_gap, args.tam_kind, args.tam_budget, args.tam_delta)):
         sys.exit("[error] --tam-* options only apply to --mask-criterion tam / tam_var")
     if tam:
-        implied = "bucket" if args.mask_criterion == "tam_var" else "fixed"
+        implied = "bucket" if args.mask_criterion in TAM_BUCKET_CRITERIA else "fixed"
         if args.tam_budget not in (None, implied):
             sys.exit(f"[error] --mask-criterion {args.mask_criterion} implies --tam-budget {implied}")
         if implied == "fixed" and args.tam_delta is not None:
-            sys.exit("[error] --tam-delta only applies to tam_var")
+            sys.exit("[error] --tam-delta only applies to tam_var / tam_r_var")
         args.tam_gap = list(args.tam_gap or TAM_GAP)
         args.tam_kind = args.tam_kind or "attn_last"
         args.tam_budget = implied
