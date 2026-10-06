@@ -13,6 +13,9 @@
                  mean k per image; the teacher runs once per bucket (no padding / attention masks).
   tam_oracle     tam with T from a full teacher forward on the current (pre-mixup) view instead of the cache
                  (diagnostic upper bound; costs more than full KD).
+  tam_r_var      tam_r + per-image budget: same 3 buckets as tam_var, but the concentration is measured on the
+                 student rollout S of the actual (mixed) training view instead of the cached T. Run with
+                 --tam-gap 0 0 for TrustMask (tam_r_g0) + variable budget.
 Training criteria (Stage 2 / 3 pilot): maskedkd, random, rollout (student rollout, Stage 1 criterion), tam,
 tam_var, tam_oracle, tam_r (tam with S = student attention rollout instead of the last-block CLS attention).
 """
@@ -22,11 +25,12 @@ from stage0.attention import AttentionRecorder
 
 NUM_PATCHES = 196
 CRITERIA = ("maskedkd", "random", "rollout", "teacher_cache", "teacher_oracle")
-TRAIN_CRITERIA = ("maskedkd", "random", "rollout", "tam", "tam_var", "tam_oracle", "tam_r")   # Stage 2 + Stage 3 pilot
+TRAIN_CRITERIA = ("maskedkd", "random", "rollout", "tam", "tam_var", "tam_oracle", "tam_r", "tam_r_var")   # Stage 2 + Stage 3 pilot
 STAGE2_CRITERIA = ("maskedkd", "random")            # default of `scheduler --stage 2` (unchanged)
 STUDENT_CRITERIA = ("maskedkd", "random", "rollout")  # StudentMaskSelector
-TAM_CRITERIA = ("tam", "tam_var", "tam_oracle", "tam_r")
-TAM_CACHE_CRITERIA = ("tam", "tam_var", "tam_r")           # T from the attribution cache (tam_oracle: from the teacher)
+TAM_CRITERIA = ("tam", "tam_var", "tam_oracle", "tam_r", "tam_r_var")
+TAM_BUCKET_CRITERIA = ("tam_var", "tam_r_var")
+TAM_CACHE_CRITERIA = ("tam", "tam_var", "tam_r", "tam_r_var")          # T from the attribution cache (tam_oracle: from the teacher)
 TAM_GAP = (0.1, 0.5)      # g0 -> g1 linearly over training
 TAM_DELTA = 0.33
 
@@ -116,8 +120,8 @@ def tam_bucket_ks(k, delta, n=NUM_PATCHES):
 
 
 def tam_buckets(T, k, delta):
-    """Split a micro-batch into 3 budget buckets by teacher concentration c = mass of the top-k tokens of
-    T normalised to sum 1. Most concentrated third -> k_lo, least concentrated third -> k_hi, rest
+    """Split a micro-batch into 3 budget buckets by concentration c = mass of the top-k tokens of
+    T (teacher attribution for tam_var, student rollout for tam_r_var) normalised to sum 1. Most concentrated third -> k_lo, least concentrated third -> k_hi, rest
     (incl. the remainder of B mod 3) -> k. Returns [(rows LongTensor, k_b), ...] for non-empty buckets."""
     B = T.shape[0]
     t = T.float().clamp_min(0)
@@ -147,7 +151,7 @@ class TamSelector:
         self.g0, self.g1 = gap
         self.delta = delta
         self.g = self.g0
-        self.s_kind = "rollout" if criterion == "tam_r" else "cls_last"   # tam_r: S = student rollout
+        self.s_kind = "rollout" if criterion in ("tam_r", "tam_r_var") else "cls_last"   # tam_r*: S = student rollout
         self.recorder = AttentionRecorder(student, need=(self.s_kind,))
 
     def set_epoch(self, epoch, epochs):
@@ -167,7 +171,8 @@ class TamSelector:
         T = T.to(S.device)
         if self.criterion in ("tam", "tam_oracle", "tam_r"):
             return tam_select(T, S, self.k, self.g)
-        return [(rows, tam_select(T[rows], S[rows], kb, self.g)) for rows, kb in tam_buckets(T, self.k, self.delta)]
+        conc = S if self.criterion == "tam_r_var" else T   # tam_r_var: budget from the student's view
+        return [(rows, tam_select(T[rows], S[rows], kb, self.g)) for rows, kb in tam_buckets(conc, self.k, self.delta)]
 
 
 # ---------------------------------------------------------------------- TAM under mixup / cutmix ---

@@ -149,6 +149,16 @@ def test_tam_selector_uses_student_hook():
         s(x)
         b = sel.select(6, T)
     assert isinstance(b, list) and sum(r.numel() for r, _ in b) == 6
+    with TamSelector("tam_r_var", 0.3, s, gap=(0.0, 0.0)) as sel:        # buckets from the student rollout
+        torch.manual_seed(1)
+        out4 = s(x)
+        bv = sel.select(6, T)
+    assert torch.equal(out, out4), "tam_r_var hooks must not change the training forward"
+    exp = tam_buckets(R, 59, 0.33)
+    assert [(r.tolist(), kb) for r, kb in exp] == [(r.tolist(), i.shape[1]) for r, i in bv]
+    for (rows, idx), (_, kb) in zip(bv, exp):
+        assert torch.equal(idx, tam_select(T[rows], R[rows], kb, 0.0))
+    assert [i.shape[1] for _, i in bv] == [40, 59, 78]
     assert all(len(blk.attn._forward_hooks) == 0 for blk in s.blocks)
 
 
