@@ -17,10 +17,12 @@ def test_mmr_logic():
     idx = mmr_select(S, H, k, lam=0.5)
     assert idx.shape == (B, k) and all(len(set(r.tolist())) == k for r in idx)  # distinct
     assert torch.equal(idx[:, 0], S.argmax(1))                                  # first = most relevant
+    pool = topk_idx(S, 2 * k)
+    assert all(set(r.tolist()) <= set(p.tolist()) for r, p in zip(idx, pool))   # only inside the top-2k pool
     # duplicates: 10 identical copies of the best token -> mmr keeps 1, top-k keeps all
     H2, S2 = H.clone(), S.clone()
     H2[:, :10] = H2[:, :1]; S2[:, :10] = 1.0
-    assert (mmr_select(S2, H2, k, lam=0.5) < 10).sum(1).max() <= 2
+    assert (mmr_select(S2, H2, k, lam=0.5)[:, :9] < 10).sum(1).max() == 1        # early picks skip the copies
     assert (topk_idx(S2, k) < 10).sum(1).min() == 10
     # sink filter: high-norm tokens with the highest S are not taken while others remain
     H3 = H.clone(); H3[:, :5] *= 100; S3 = S.clone(); S3[:, :5] = 5.0
@@ -40,6 +42,11 @@ def test_selector_hooks():
             idx = sel.select(3, "cpu")
         assert torch.equal(out, ref), c
         assert idx.shape == (3, 29)
+        d = sel.pop_diag()
+        assert set(d) == set(StudentMaskSelector.DIAG_FIELDS) and sel.pop_diag() == {}
+        assert all(0.0 <= d[f] <= 1.0 for f in ("sink_frac_topk", "sink_frac_sel", "overlap_topk"))
+        if c == "mk_filt":
+            assert d["sink_frac_sel"] == 0.0 or d["sink_frac_sel"] <= d["sink_frac_topk"]
     assert all(len(b.attn._forward_hooks) == 0 and len(b._forward_hooks) == 0 for b in s.blocks)
 
 
