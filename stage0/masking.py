@@ -16,6 +16,11 @@
   tam_r_var      tam_r + per-image budget: same 3 buckets as tam_var, but the concentration is measured on the
                  student rollout S of the actual (mixed) training view instead of the cached T. Run with
                  --tam-gap 0 0 for TrustMask (tam_r_g0) + variable budget.
+  mk_filt / mk_mmr / mk_fmmr  MaskedKD score S (student last-block CLS attention) with
+                 filt: tokens whose last-block output norm > SINK_RATIO x image median are taken last (sinks);
+                 mmr:  greedy Maximal Marginal Relevance, score = S/max(S) - MMR_LAMBDA * max cos(h_i, h_selected)
+                       on the student's last-block patch features (diversity); fmmr = both.
+                 No cache, no RNG, selection cost ~ maskedkd. lambda and the ratio are fixed a priori.
 Training criteria (Stage 2 / 3 pilot): maskedkd, random, rollout (student rollout, Stage 1 criterion), tam,
 tam_var, tam_oracle, tam_r (tam with S = student attention rollout instead of the last-block CLS attention).
 """
@@ -25,9 +30,13 @@ from stage0.attention import AttentionRecorder
 
 NUM_PATCHES = 196
 CRITERIA = ("maskedkd", "random", "rollout", "teacher_cache", "teacher_oracle")
-TRAIN_CRITERIA = ("maskedkd", "random", "rollout", "tam", "tam_var", "tam_oracle", "tam_r", "tam_r_var")   # Stage 2 + Stage 3 pilot
+TRAIN_CRITERIA = ("maskedkd", "random", "rollout", "tam", "tam_var", "tam_oracle", "tam_r", "tam_r_var",
+                  "mk_filt", "mk_mmr", "mk_fmmr")   # Stage 2 + Stage 3 pilot
 STAGE2_CRITERIA = ("maskedkd", "random")            # default of `scheduler --stage 2` (unchanged)
-STUDENT_CRITERIA = ("maskedkd", "random", "rollout")  # StudentMaskSelector
+MMR_CRITERIA = ("mk_filt", "mk_mmr", "mk_fmmr")
+STUDENT_CRITERIA = ("maskedkd", "random", "rollout") + MMR_CRITERIA  # StudentMaskSelector
+MMR_LAMBDA = 0.5
+SINK_RATIO = 3.0
 TAM_CRITERIA = ("tam", "tam_var", "tam_oracle", "tam_r", "tam_r_var")
 TAM_BUCKET_CRITERIA = ("tam_var", "tam_r_var")
 TAM_CACHE_CRITERIA = ("tam", "tam_var", "tam_r", "tam_r_var")          # T from the attribution cache (tam_oracle: from the teacher)
@@ -50,6 +59,45 @@ def random_idx(batch, k, generator, device, n=NUM_PATCHES):
     return torch.rand(batch, n, generator=generator).argsort(dim=1)[:, :k].to(device)
 
 
+def mmr_select(S, H, k, lam=MMR_LAMBDA, sink_ratio=None):
+    """S: (B, n) relevance, H: (B, n, D) patch features. Returns (B, k), greedy MMR (lam=0: plain top-k).
+    sink_ratio: tokens with ||h|| > sink_ratio * median_i ||h|| get a -1e4 penalty (picked only if needed)."""
+    S = S.float()
+    S = S / S.amax(1, keepdim=True).clamp_min(1e-12)
+    if sink_ratio is not None:
+        nrm = H.float().norm(dim=-1)
+        S = S - 1e4 * (nrm > sink_ratio * nrm.median(dim=1, keepdim=True).values).float()
+    if lam == 0:
+        return torch.topk(S, k, dim=1).indices
+    Hn = torch.nn.functional.normalize(H.float(), dim=-1)
+    B, n = S.shape
+    maxsim = torch.zeros(B, n, device=S.device)
+    taken = torch.zeros(B, n, dtype=torch.bool, device=S.device)
+    out = []
+    for _ in range(k):
+        sc = (S - lam * maxsim).masked_fill(taken, float("-inf"))
+        j = sc.argmax(1)                                                     # (B,)
+        out.append(j)
+        taken[torch.arange(B, device=S.device), j] = True
+        sim = torch.einsum("bnd,bd->bn", Hn, Hn[torch.arange(B, device=S.device), j])
+        maxsim = torch.maximum(maxsim, sim) if len(out) > 1 else sim
+    return torch.stack(out, 1)
+
+
+class _LastFeatures:
+    """Forward hook on the last block: keeps its patch-token output (B, n, D), detached."""
+
+    def __init__(self, model):
+        self.block, self.h, self.handle = model.blocks[-1], None, None
+
+    def __enter__(self):
+        self.handle = self.block.register_forward_hook(lambda m, i, o: setattr(self, "h", o[:, 1:].detach()))
+        return self
+
+    def __exit__(self, *exc):
+        self.handle.remove()
+
+
 class StudentMaskSelector:
     """Training-time selection for Stage 2 (criteria maskedkd / random).
 
@@ -64,15 +112,25 @@ class StudentMaskSelector:
         self.recorder = AttentionRecorder(student, need=("cls_last",)) if criterion == "maskedkd" else None
         if criterion == "rollout":   # all blocks hooked: rollout of the student's training forward
             self.recorder = AttentionRecorder(student, need=("rollout",))
+        self.feats = None
+        if criterion in MMR_CRITERIA:
+            self.recorder = AttentionRecorder(student, need=("cls_last",))
+            self.feats = _LastFeatures(student)
+            self.lam = MMR_LAMBDA if criterion in ("mk_mmr", "mk_fmmr") else 0.0
+            self.sink = SINK_RATIO if criterion in ("mk_filt", "mk_fmmr") else None
 
     def __enter__(self):
         if self.recorder is not None:
             self.recorder.__enter__()
+        if self.feats is not None:
+            self.feats.__enter__()
         return self
 
     def __exit__(self, *exc):
         if self.recorder is not None:
             self.recorder.__exit__(*exc)
+        if self.feats is not None:
+            self.feats.__exit__(*exc)
 
     def select(self, batch, device, generator=None):
         """Call right after the student forward on the same micro-batch."""
@@ -81,6 +139,11 @@ class StudentMaskSelector:
             assert scores is not None and scores.shape[0] == batch, "student forward must run before select()"
             self.recorder.cls_last = None
             return topk_idx(scores, self.k)
+        if self.criterion in MMR_CRITERIA:
+            S, H = self.recorder.cls_last, self.feats.h
+            assert S is not None and H is not None and S.shape[0] == batch, "student forward must run before select()"
+            self.recorder.cls_last = self.feats.h = None
+            return mmr_select(S, H, self.k, self.lam, self.sink)
         if self.criterion == "rollout":
             scores = self.recorder.rollout
             assert scores is not None and scores.shape[0] == batch, "student forward must run before select()"

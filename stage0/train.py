@@ -148,7 +148,7 @@ def build_config(args, out_root, data_root):
         config.update({"tam_gap": args.tam_gap, "tam_kind": args.tam_kind, "tam_budget": args.tam_budget,
                        "tam_delta": args.tam_delta,
                        "tam_teacher_signal": "oracle" if args.mask_criterion == "tam_oracle" else "cache"})
-    if args.mask_criterion in ("rollout",) + TAM_CRITERIA:   # selection cost (GFLOPs/img), new criteria only
+    if args.mask_criterion in ("rollout", "mk_filt", "mk_mmr", "mk_fmmr") + TAM_CRITERIA:   # selection cost (GFLOPs/img), new criteria only
         from stage0.flops import selection_gflops
         config["selection_gflops"] = round(selection_gflops(args.mask_criterion, args.tam_kind or "attn_last",
                                                             config["num_classes"]), 4)
