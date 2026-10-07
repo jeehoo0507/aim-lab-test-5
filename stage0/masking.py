@@ -18,8 +18,9 @@
                  --tam-gap 0 0 for TrustMask (tam_r_g0) + variable budget.
   mk_filt / mk_mmr / mk_fmmr  MaskedKD score S (student last-block CLS attention) with
                  filt: tokens whose last-block output norm > SINK_RATIO x image median are taken last (sinks);
-                 mmr:  greedy Maximal Marginal Relevance, score = S/max(S) - MMR_LAMBDA * max cos(h_i, h_selected)
-                       on the student's last-block patch features (diversity); fmmr = both.
+                 mmr:  pool = top 2k by S; inside it greedy Maximal Marginal Relevance, score = rank of S in the
+                       pool (0..1) - MMR_LAMBDA * max cos(h_i, h_selected) on the student's last-block patch
+                       features centred per image (diversity); fmmr = both. log.csv gets sink / redundancy / overlap diagnostics.
                  No cache, no RNG, selection cost ~ maskedkd. lambda and the ratio are fixed a priori.
 Training criteria (Stage 2 / 3 pilot): maskedkd, random, rollout (student rollout, Stage 1 criterion), tam,
 tam_var, tam_oracle, tam_r (tam with S = student attention rollout instead of the last-block CLS attention).
@@ -59,29 +60,46 @@ def random_idx(batch, k, generator, device, n=NUM_PATCHES):
     return torch.rand(batch, n, generator=generator).argsort(dim=1)[:, :k].to(device)
 
 
-def mmr_select(S, H, k, lam=MMR_LAMBDA, sink_ratio=None):
-    """S: (B, n) relevance, H: (B, n, D) patch features. Returns (B, k), greedy MMR (lam=0: plain top-k).
-    sink_ratio: tokens with ||h|| > sink_ratio * median_i ||h|| get a -1e4 penalty (picked only if needed)."""
+def mmr_select(S, H, k, lam=MMR_LAMBDA, sink_ratio=None, pool_mult=2):
+    """S: (B, n) relevance, H: (B, n, D) patch features. Returns (B, k).
+
+    sink_ratio: tokens with ||h|| > sink_ratio * median_i ||h|| are ranked below all others (taken only if needed).
+    lam = 0: plain top-k of S (after the sink rule).
+    lam > 0: candidate pool = top min(n, pool_mult*k) by S (importance gate), then greedy MMR inside the pool on
+             rel = rank of S within the pool in [0, 1] (scale-free, comparable to cosine) minus
+             lam * max cos(h_i, h_selected), features centred per image (common component removed). First pick = top S.
+    """
     S = S.float()
-    S = S / S.amax(1, keepdim=True).clamp_min(1e-12)
     if sink_ratio is not None:
         nrm = H.float().norm(dim=-1)
         S = S - 1e4 * (nrm > sink_ratio * nrm.median(dim=1, keepdim=True).values).float()
     if lam == 0:
         return torch.topk(S, k, dim=1).indices
-    Hn = torch.nn.functional.normalize(H.float(), dim=-1)
     B, n = S.shape
-    maxsim = torch.zeros(B, n, device=S.device)
-    taken = torch.zeros(B, n, dtype=torch.bool, device=S.device)
+    m = min(n, pool_mult * k)
+    pool = torch.topk(S, m, dim=1).indices                                       # (B, m), sorted by S
+    rel = torch.linspace(1.0, 0.0, m, device=S.device).expand(B, m)              # rank within pool
+    Hc = H.float() - H.float().mean(1, keepdim=True)        # remove the image-wide common component
+    Hp = torch.nn.functional.normalize(torch.gather(Hc, 1, pool[..., None].expand(-1, -1, H.shape[-1])), dim=-1)
+    ar = torch.arange(B, device=S.device)
+    maxsim = torch.zeros(B, m, device=S.device)
+    taken = torch.zeros(B, m, dtype=torch.bool, device=S.device)
     out = []
-    for _ in range(k):
-        sc = (S - lam * maxsim).masked_fill(taken, float("-inf"))
-        j = sc.argmax(1)                                                     # (B,)
+    for t in range(k):
+        j = (rel - lam * maxsim).masked_fill(taken, float("-inf")).argmax(1)    # (B,) position in pool
         out.append(j)
-        taken[torch.arange(B, device=S.device), j] = True
-        sim = torch.einsum("bnd,bd->bn", Hn, Hn[torch.arange(B, device=S.device), j])
-        maxsim = torch.maximum(maxsim, sim) if len(out) > 1 else sim
-    return torch.stack(out, 1)
+        taken[ar, j] = True
+        sim = torch.einsum("bmd,bd->bm", Hp, Hp[ar, j])
+        maxsim = sim if t == 0 else torch.maximum(maxsim, sim)
+    return torch.gather(pool, 1, torch.stack(out, 1))
+
+
+def mean_pair_cos(H, idx):
+    """Mean pairwise cosine among the selected tokens' features (redundancy), averaged over the batch."""
+    Hs = torch.nn.functional.normalize(torch.gather(H.float(), 1, idx[..., None].expand(-1, -1, H.shape[-1])), dim=-1)
+    k = idx.shape[1]
+    G = Hs @ Hs.transpose(1, 2)
+    return ((G.sum((1, 2)) - k) / max(1, k * (k - 1))).mean().item()
 
 
 class _LastFeatures:
@@ -118,6 +136,7 @@ class StudentMaskSelector:
             self.feats = _LastFeatures(student)
             self.lam = MMR_LAMBDA if criterion in ("mk_mmr", "mk_fmmr") else 0.0
             self.sink = SINK_RATIO if criterion in ("mk_filt", "mk_fmmr") else None
+            self.diag_sums, self.diag_n = {}, 0
 
     def __enter__(self):
         if self.recorder is not None:
@@ -132,6 +151,14 @@ class StudentMaskSelector:
         if self.feats is not None:
             self.feats.__exit__(*exc)
 
+    DIAG_FIELDS = ("sink_frac_topk", "sink_frac_sel", "redund_topk", "redund_sel", "overlap_topk")
+
+    def pop_diag(self):
+        """Epoch means of the MMR diagnostics; resets the accumulators."""
+        out = {key: v / max(1, self.diag_n) for key, v in self.diag_sums.items()}
+        self.diag_sums, self.diag_n = {}, 0
+        return out
+
     def select(self, batch, device, generator=None):
         """Call right after the student forward on the same micro-batch."""
         if self.criterion == "maskedkd":
@@ -143,7 +170,19 @@ class StudentMaskSelector:
             S, H = self.recorder.cls_last, self.feats.h
             assert S is not None and H is not None and S.shape[0] == batch, "student forward must run before select()"
             self.recorder.cls_last = self.feats.h = None
-            return mmr_select(S, H, self.k, self.lam, self.sink)
+            idx = mmr_select(S, H, self.k, self.lam, self.sink)
+            with torch.no_grad():                    # mechanism diagnostics vs the plain MaskedKD top-k
+                top = topk_idx(S, self.k)
+                nrm = H.float().norm(dim=-1)
+                sink = nrm > SINK_RATIO * nrm.median(dim=1, keepdim=True).values
+                d = {"sink_frac_topk": torch.gather(sink, 1, top).float().mean().item(),
+                     "sink_frac_sel": torch.gather(sink, 1, idx).float().mean().item(),
+                     "redund_topk": mean_pair_cos(H, top), "redund_sel": mean_pair_cos(H, idx),
+                     "overlap_topk": (idx[:, :, None] == top[:, None, :]).any(2).float().mean().item()}
+            for key, v in d.items():
+                self.diag_sums[key] = self.diag_sums.get(key, 0.0) + v
+            self.diag_n += 1
+            return idx
         if self.criterion == "rollout":
             scores = self.recorder.rollout
             assert scores is not None and scores.shape[0] == batch, "student forward must run before select()"

@@ -52,7 +52,7 @@ from stage0.attribution import AttributionCache, crop_maps, teacher_attribution,
 from stage0.datasets import Stage0Dataset, WithIndex, build_eval_transform, build_train_transform
 from stage0.engine import accuracy, amp_ctx, get_device, make_loader, numpy_collate_box_index, predict
 from stage0.losses import Stage0Loss
-from stage0.masking import (TAM_BUCKET_CRITERIA, TAM_CACHE_CRITERIA, TAM_CRITERIA, TAM_DELTA, TAM_GAP, TRAIN_CRITERIA,
+from stage0.masking import (MMR_CRITERIA, TAM_BUCKET_CRITERIA, TAM_CACHE_CRITERIA, TAM_CRITERIA, TAM_DELTA, TAM_GAP, TRAIN_CRITERIA,
                             RecordingMixup, StudentMaskSelector, TamSelector, mix_attribution, num_keep,
                             tam_bucket_ks)
 from stage0.models import (create_student, create_teacher, load_finetuned_teacher, teacher_forward,
@@ -309,6 +309,9 @@ def train(args, rd, config, state):
     csv_fields = CSV_FIELDS + (["mask_agree"] if masked else []) \
         + (["tam_gap_ratio", "mean_k", "bucket_k", "teacher_gflops"] if tam else []) \
         + (["cache_oracle_overlap"] if tam_cache else [])
+    mmr = masked and args.mask_criterion in MMR_CRITERIA
+    if mmr:
+        csv_fields = csv_fields + list(StudentMaskSelector.DIAG_FIELDS)
     hash_log = os.environ.get("STAGE0_BATCH_HASH_LOG")
 
     start_epoch, best_val, best_epoch = 0, -1.0, -1
@@ -432,6 +435,8 @@ def train(args, rd, config, state):
             assert abs(tam_tokens / n - num_keep(args.keep)) <= 1.0, (tam_tokens / n, num_keep(args.keep))
         if tam_cache:
             row["cache_oracle_overlap"] = f"{overlap:.4f}"
+        if mmr:
+            row.update({key: f"{v:.4f}" for key, v in selector.pop_diag().items()})
 
         if args.mode == "teacher" and val_acc > best_val:
             best_val, best_epoch = val_acc, epoch
