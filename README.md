@@ -1,3 +1,37 @@
+# WGA 붕괴 지점 찾기 (Waterbirds, 브랜치 `wga-collapse`)
+
+**질문:** MaskedKD는 teacher 토큰을 줄일수록 clean 정확도는 거의 그대로인데 worst-group accuracy(WGA)가 무너진다
+(예전 cv2: keep 0.15에서 WGA −18.5%p, clean −0.7%p). 어느 keep에서 무너지기 시작하고, 같은 keep에서 rollout은 버티는가?
+체크포인트가 없어져서 Stage 0부터 다시 만들고, 다음 단계(패치 분석)에 쓸 체크포인트를 남긴다.
+
+```bash
+cd ~ && git clone -b wga-collapse https://github.com/jeehoo0507/aim-lab-test-5 aim-wga && cd aim-wga
+source $HOME/.local/bin/env && uv sync
+export DATA_ROOT=$HOME/stage0/data OUTPUT_ROOT=$HOME/stage0/outputs HF_HOME=$HOME/stage0/hf GPUS=0
+export BACKUP_DIR=/shared/users/<me>/wga        # 선택: 단계마다 run 폴더(체크포인트 포함) + 결과를 복사
+./smoke_test_wga.sh                             # 먼저 (가짜 데이터, CPU 가능, 10~20분). 끝에 "SMOKE OK"
+setsid nohup ./scripts/run_wga_collapse.sh > $HOME/wga.log 2>&1 < /dev/null &
+tail -f $HOME/wga.log                           # Ctrl+C는 보기만 멈춤
+cat results/wga_collapse.md                     # 결과 (중간에 봐도 됨: uv run python -m stage0.summarize_wga)
+```
+
+| 단계 | 내용 | 규모 (A5000 1장, 대략) |
+|---|---|---|
+| 1 preflight · 2 data | GPU/디스크 점검, Waterbirds 다운로드·split 고정 | 수 분 |
+| 3 Stage 0 | lr sweep, teacher, CE ×3, KD ×3, corruption 캐시, 평가 | 반나절 |
+| 4 sweep | `maskedkd`, `rollout` × keep 0.5 / 0.3 / 0.25 / 0.2 / 0.15 × seed 0–2 = 30 run + 평가 | 하루 |
+| 5 요약 | `results/wga_collapse.{md,csv,png}` | 즉시 |
+
+- 다시 실행하면 끝난 run은 건너뛴다 (중단된 run은 `last.pt`에서 이어감). 일부만: `KEEPS="0.3 0.2 0.15" ./scripts/run_wga_collapse.sh`.
+- 요약 내용: (1) 예전 cv2 결과(`results/wga_reference_cv2.json`)와 재현 비교, (2) keep별 clean / WGA / corruption과
+  Full KD 대비 같은 seed 차이, (3) 그룹별 정확도 (g2 = 땅 위의 물새가 최악 그룹), (4) 판정, (5) 그림.
+- 판정 규칙 (사전 고정): **붕괴 지점** = Full KD 대비 MaskedKD ΔWGA 평균 ≤ −3%p이고 모든 seed 음수인 가장 큰 keep.
+  그 지점에서 |Δclean| < 1%p면 "clean 유지, WGA만 하락". 재현은 teacher / CE / KD 평균이 예전과 clean ±1, WGA ±3 이내.
+- 체크포인트: Stage 2 run마다 `ckpt_e10.pt`, `ckpt_e30.pt`, `ckpt_e60.pt`, `last.pt` (패치 분석 재료). 서버가 사라질 수 있으니
+  `BACKUP_DIR`을 꼭 지정하거나 끝난 뒤 직접 옮길 것.
+
+---
+
 # Stage 0: KD > CE 환경 확보
 
 DeiT-B (ImageNet-1k → 타깃 데이터셋 fine-tune) teacher, DeiT-Ti (ImageNet-1k pretrained) student로

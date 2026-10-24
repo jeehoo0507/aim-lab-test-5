@@ -77,8 +77,11 @@ def make_waterbirds(root, rng):
 def main():
     root = Path(os.environ.get("DATA_ROOT") or sys.exit("set DATA_ROOT"))
     rng = np.random.default_rng(0)
-    make_cub(root, rng)
-    make_waterbirds(root, rng)
+    which = os.environ.get("FAKE_DATASETS", "cub waterbirds").split()
+    if "cub" in which:
+        make_cub(root, rng)
+    if "waterbirds" in which:
+        make_waterbirds(root, rng)
     print(f"fake datasets written under {root}")
 
 

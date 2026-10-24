@@ -1,0 +1,263 @@
+{
+ "source": "results-cv2 branch, archive/cv2/outputs/waterbirds (cv2 server, 2026-10)",
+ "runs": {
+  "ce": {
+   "0": {
+    "clean_acc": 89.82,
+    "wga": 70.4,
+    "corruption_acc": 76.89,
+    "group_acc": [
+     99.6,
+     84.04,
+     70.4,
+     95.17
+    ]
+   },
+   "1": {
+    "clean_acc": 90.7,
+    "wga": 71.5,
+    "corruption_acc": 77.65,
+    "group_acc": [
+     99.82,
+     85.32,
+     71.5,
+     96.73
+    ]
+   },
+   "2": {
+    "clean_acc": 89.68,
+    "wga": 73.83,
+    "corruption_acc": 76.05,
+    "group_acc": [
+     99.73,
+     82.31,
+     73.83,
+     96.11
+    ]
+   }
+  },
+  "kd": {
+   "0": {
+    "clean_acc": 90.59,
+    "wga": 72.12,
+    "corruption_acc": 78.33,
+    "group_acc": [
+     99.65,
+     85.14,
+     72.12,
+     96.42
+    ]
+   },
+   "1": {
+    "clean_acc": 91.49,
+    "wga": 73.99,
+    "corruption_acc": 79.41,
+    "group_acc": [
+     99.78,
+     86.65,
+     73.99,
+     96.88
+    ]
+   },
+   "2": {
+    "clean_acc": 90.84,
+    "wga": 75.86,
+    "corruption_acc": 78.42,
+    "group_acc": [
+     99.78,
+     84.48,
+     75.86,
+     96.73
+    ]
+   }
+  },
+  "maskedkd_k0.15": {
+   "0": {
+    "clean_acc": 89.78,
+    "wga": 52.49,
+    "corruption_acc": 72.65,
+    "group_acc": [
+     99.87,
+     89.53,
+     52.49,
+     92.52
+    ]
+   },
+   "1": {
+    "clean_acc": 90.7,
+    "wga": 55.61,
+    "corruption_acc": 73.3,
+    "group_acc": [
+     99.87,
+     90.86,
+     55.61,
+     92.99
+    ]
+   },
+   "2": {
+    "clean_acc": 90.44,
+    "wga": 58.41,
+    "corruption_acc": 72.64,
+    "group_acc": [
+     99.78,
+     89.36,
+     58.41,
+     93.46
+    ]
+   }
+  },
+  "maskedkd_k0.3": {
+   "0": {
+    "clean_acc": 91.39,
+    "wga": 71.5,
+    "corruption_acc": 77.33,
+    "group_acc": [
+     99.82,
+     87.45,
+     71.5,
+     95.48
+    ]
+   },
+   "1": {
+    "clean_acc": 91.99,
+    "wga": 71.96,
+    "corruption_acc": 78.05,
+    "group_acc": [
+     99.82,
+     88.69,
+     71.96,
+     96.11
+    ]
+   },
+   "2": {
+    "clean_acc": 91.85,
+    "wga": 72.74,
+    "corruption_acc": 76.98,
+    "group_acc": [
+     99.82,
+     88.07,
+     72.74,
+     96.26
+    ]
+   }
+  },
+  "maskedkd_k0.5": {
+   "0": {
+    "clean_acc": 91.03,
+    "wga": 72.74,
+    "corruption_acc": 78.16,
+    "group_acc": [
+     99.78,
+     86.08,
+     72.74,
+     95.95
+    ]
+   },
+   "1": {
+    "clean_acc": 92.11,
+    "wga": 75.23,
+    "corruption_acc": 79.41,
+    "group_acc": [
+     99.87,
+     87.85,
+     75.23,
+     96.73
+    ]
+   },
+   "2": {
+    "clean_acc": 91.44,
+    "wga": 75.55,
+    "corruption_acc": 78.21,
+    "group_acc": [
+     99.73,
+     86.12,
+     75.55,
+     96.88
+    ]
+   }
+  },
+  "rollout_k0.15": {
+   "0": {
+    "clean_acc": 91.56,
+    "wga": 69.16,
+    "corruption_acc": 73.99,
+    "group_acc": [
+     99.65,
+     88.87,
+     69.16,
+     95.02
+    ]
+   },
+   "1": {
+    "clean_acc": 92.87,
+    "wga": 73.52,
+    "corruption_acc": 75.8,
+    "group_acc": [
+     99.65,
+     90.82,
+     73.52,
+     95.64
+    ]
+   },
+   "2": {
+    "clean_acc": 91.91,
+    "wga": 72.9,
+    "corruption_acc": 74.03,
+    "group_acc": [
+     99.73,
+     88.65,
+     72.9,
+     94.86
+    ]
+   }
+  },
+  "rollout_k0.3": {
+   "0": {
+    "clean_acc": 91.58,
+    "wga": 74.45,
+    "corruption_acc": 77.58,
+    "group_acc": [
+     99.82,
+     87.01,
+     74.45,
+     95.79
+    ]
+   },
+   "1": {
+    "clean_acc": 92.46,
+    "wga": 75.86,
+    "corruption_acc": 78.36,
+    "group_acc": [
+     99.82,
+     88.74,
+     75.86,
+     96.26
+    ]
+   },
+   "2": {
+    "clean_acc": 92.01,
+    "wga": 76.64,
+    "corruption_acc": 77.63,
+    "group_acc": [
+     99.69,
+     87.23,
+     76.64,
+     97.2
+    ]
+   }
+  },
+  "teacher": {
+   "0": {
+    "clean_acc": 93.63,
+    "wga": 75.86,
+    "corruption_acc": 83.42,
+    "group_acc": [
+     99.91,
+     91.8,
+     75.86,
+     95.79
+    ]
+   }
+  }
+ }
+}
