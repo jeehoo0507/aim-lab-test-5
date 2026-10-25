@@ -68,6 +68,14 @@ def make_waterbirds(root, rng):
                 rows.append({"img_id": idx, "img_filename": name, "y": y, "split": split, "place": place,
                              "place_filename": "/fake.jpg"})
                 idx += 1
+    if os.environ.get("FAKE_SEG") == "1":       # fake CUB segmentations: bird = lower 2/3 (see img())
+        seg = root / "cub_segmentations" / "segmentations"
+        mask = np.zeros((SIZE, SIZE), np.uint8)
+        mask[SIZE // 3:] = 255
+        for r in rows:
+            p = seg / Path(r["img_filename"]).with_suffix(".png")
+            p.parent.mkdir(parents=True, exist_ok=True)
+            Image.fromarray(mask).save(p)
     with open(base / "metadata.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()

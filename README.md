@@ -30,6 +30,31 @@ cat results/wga_collapse.md                     # 결과 (중간에 봐도 됨: 
 - 체크포인트: Stage 2 run마다 `ckpt_e10.pt`, `ckpt_e30.pt`, `ckpt_e60.pt`, `last.pt` (패치 분석 재료). 서버가 사라질 수 있으니
   `BACKUP_DIR`을 꼭 지정하거나 끝난 뒤 직접 옮길 것.
 
+## 다음: 왜 무너지는가 (`scripts/run_why.sh`, `run_wga_collapse.sh`가 끝난 뒤)
+
+student는 항상 전체 이미지를 보므로 마스킹이 바꾸는 것은 **teacher target뿐**이다. 그래서
+"어떤 패치를 남기나 → 남긴 패치만 본 teacher가 그룹별로 무엇을 말하나 → student가 그룹별로 어떻게 되나"를 따라간다.
+
+```bash
+cd ~/aim-wga && git pull
+export DATA_ROOT=$HOME/stage0/data OUTPUT_ROOT=$HOME/stage0/outputs HF_HOME=$HOME/stage0/hf GPUS=0 BACKUP_DIR=/shared/users/<me>/wga
+./smoke_test_why.sh                                   # 가짜 데이터, CPU 가능, ~25분. 끝에 "SMOKE OK"
+setsid nohup ./scripts/run_why.sh > $HOME/why.log 2>&1 < /dev/null &
+cat results/why/why.md results/why/surgical.md        # 결과; 그림 results/why/patches_g2.png
+```
+
+| 단계 | 내용 | 시간 (A5000 1장) |
+|---|---|---|
+| 1 분석 (추론만) | 각 run의 student(e10/e30/e60/최종)로 패치를 다시 골라: 그룹별 masked teacher 정답 확률, 남긴 패치의 새 비율·새 회수율 (CUB 분할 마스크 자동 다운로드), 새 비율 구간별 teacher 정답률, 학습 중 변화, 같은 KD student로 기준만 바꾼 대조, 층별 CKA, g2 이미지 그림 | 30~60분 |
+| 2 surgical | head / last2 / first4만 학습 × {KD, MaskedKD, rollout} @ 0.15 × 3 seed (Lee et al. 2022) | ~6시간 |
+
+- 사전 고정 판정: **H1 teacher target 손상** = 물새 train 이미지에서 rollout − MaskedKD의 masked teacher 정답 확률 ≥ 10%p.
+  **H2 새 증거 손실** = 남긴 패치의 새 비율 차이 ≥ 0.10. **surgical**: head만 학습해도 MaskedKD − KD WGA ≤ −3%p (모든 seed 음수)면
+  "특징 변화 없이 target만으로 붕괴" → 원인은 teacher target.
+- 분석은 clean eval view(Resize 256 → CenterCrop 224)·eval mode에서 다시 고른다. 학습 때는 증강·mixup된 이미지에서
+  train mode로 골랐다는 차이가 있다 (보고서에 명시).
+- 분석만: `SURGICAL=0 ./scripts/run_why.sh`. surgical만: `./scripts/run_surgical.sh`.
+
 ---
 
 # Stage 0: KD > CE 환경 확보

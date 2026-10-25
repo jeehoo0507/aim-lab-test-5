@@ -79,6 +79,9 @@ def parse_args(argv=None):
     ap.add_argument("--tam-budget", choices=("fixed", "bucket"), default=None,
                     help="[tam] fixed (tam) or 3-bucket (tam_var); implied by the criterion")
     ap.add_argument("--tam-delta", type=float, default=None, help=f"[tam_var] bucket spread (default {TAM_DELTA})")
+    ap.add_argument("--train-blocks", choices=TRAIN_BLOCKS, default="all",
+                    help="[student] surgical fine-tuning: which parameters train (rest frozen). head = linear "
+                         "probe; last2 = blocks 10-11 + norm + head; first4 = patch/pos embed + blocks 0-3 + head")
     ap.add_argument("--ckpt-epochs", type=int, nargs="*", default=list(C.CKPT_EPOCHS),
                     help="[maskedkd] epochs (1-based) after which ckpt_e{epoch}.pt (student weights) is saved")
     ap.add_argument("--epochs", type=int, default=C.EPOCHS)
@@ -97,6 +100,22 @@ def parse_args(argv=None):
     ap.add_argument("--random-init", action="store_true",
                     help="[smoke, offline] skip ImageNet weights. Never use for real runs.")
     return ap.parse_args(argv)
+
+
+TRAIN_BLOCKS = ("all", "head", "last2", "first4")
+
+
+def freeze_for(model, which):
+    """Surgical fine-tuning (Lee et al. 2022): keep only the chosen parameters trainable. Returns #trainable."""
+    if which == "all":
+        return sum(p.numel() for p in model.parameters())
+    n = len(model.blocks)
+    keep = {"head": ("head.",),
+            "last2": ("head.", "norm.", f"blocks.{n - 2}.", f"blocks.{n - 1}."),
+            "first4": ("head.", "patch_embed.", "cls_token", "pos_embed") + tuple(f"blocks.{i}." for i in range(4))}[which]
+    for name, p in model.named_parameters():
+        p.requires_grad_(name.startswith(keep))
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 def build_config(args, out_root, data_root):
@@ -141,6 +160,10 @@ def build_config(args, out_root, data_root):
         "amp": not args.no_amp, "limit": args.limit,
         "data_root": str(data_root), "output_root": str(out_root),
     }
+    if args.train_blocks != "all":   # extra key only for surgical runs, so earlier configs are unchanged
+        if args.mode == "teacher":
+            sys.exit("[error] --train-blocks applies to students only")
+        config["train_blocks"] = args.train_blocks
     if args.mode == C.MASK_MODE:   # extra keys only for Stage 2, so Stage 0 configs are unchanged
         config.update({"mask_criterion": args.mask_criterion, "keep": args.keep, "keep_k": num_keep(args.keep),
                        "ckpt_epochs": list(args.ckpt_epochs)})
@@ -276,6 +299,10 @@ def train(args, rd, config, state):
         teacher, tmeta = load_finetuned_teacher(ck, device)
         print(f"teacher: {ck} (epoch {tmeta['epoch']}, val acc {tmeta['val_acc']:.2f})")
 
+    if args.train_blocks != "all":
+        n_tr = freeze_for(model, args.train_blocks)
+        print(f"surgical: train_blocks={args.train_blocks}, trainable params {n_tr:,} / "
+              f"{sum(p.numel() for p in model.parameters()):,}")
     optimizer = create_optimizer_v2(model, opt="adamw", lr=args.lr, weight_decay=C.WEIGHT_DECAY, eps=C.OPT_EPS)
     scheduler = CosineLRScheduler(optimizer, t_initial=args.epochs, lr_min=config["min_lr"],
                                   warmup_t=C.WARMUP_EPOCHS, warmup_lr_init=C.WARMUP_LR, cycle_limit=1,
