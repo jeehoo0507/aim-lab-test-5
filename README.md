@@ -66,6 +66,26 @@ CUB-200-2011과 Waterbirds에서 CE vs Full KD를 비교한다. 마스킹은 없
 설정 근거: [`docs/maskedkd_settings.md`](docs/maskedkd_settings.md). MaskedKD 코드 확인 결과와
 하단의 "Stage 0 채택 설정" 표 참고.
 
+## 후속: 대조군 · 인과 · 후보 방법 (`scripts/run_more.sh`, GPU 1장 약 4~5시간)
+
+```bash
+./smoke_test_more.sh                                  # 가짜 데이터, CPU 가능, ~25분. 끝에 "SMOKE OK"
+export DATA_ROOT=$HOME/stage0/data OUTPUT_ROOT=$HOME/stage0/outputs HF_HOME=$HOME/stage0/hf GPUS=0
+setsid nohup ./scripts/run_more.sh > $HOME/more.log 2>&1 < /dev/null &   # 터미널 닫아도 됨
+tail -f $HOME/more.log                                # 시작 직후 예상 시간 출력
+```
+
+| 단계 | 내용 | 시간 |
+|---|---|---|
+| 1 캐시 | TrustMask용 teacher attention 캐시, oracle용 CUB 새 분할 캐시 (`stage0/seg_cache.py`) | 수 분 |
+| 2 분석 (추론) | 같은 student에서 신호만 바꾸기 (attn, attn×‖v‖, sink 필터, 층별, head별, rollout, random), sink 토큰 위치, 배경 주도 오류 (충돌 vs 일치 그룹, 새 비율 맞춤) → `results/why_more/why_more_AB.md` | 10~20분 |
+| 3 학습 | 우선순위 순서, 3개씩: random 0.15 · oracle 새만 · oracle 배경만 · MaskedKD+sink 필터 · TrustMask(tam_r g=0) · random 0.25 · rollout 0.1 · rollout 0.05 (각 seed 3) | 24 run |
+| 4 분석 + 요약 | 새 run들이 실제로 고르는 패치 → `why_more_C.md`, 학생 결과·사전 고정 판정 R1~R5·효율 표 → `results/more.md` | 20분 |
+
+- 중간에 끊겨도 다시 실행하면 남은 것만 돈다 (eval.json 있는 run은 건너뜀). 우선순위가 높은 run부터 끝난다.
+- oracle은 방법이 아니라 인과 확인용 통제 조건이다. 분할 마스크를 crop·flip·mixup에 맞춰 옮기지만 RandAugment의 기하 변환과 random erasing은 반영 안 됨 (TAM 캐시와 같은 한계).
+- TrustMask의 g=0 설정은 예전 test 결과를 보고 고른 것이라 R4는 보고만 한다.
+
 ## 서버 실행 순서
 
 ```bash

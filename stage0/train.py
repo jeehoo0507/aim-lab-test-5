@@ -52,9 +52,9 @@ from stage0.attribution import AttributionCache, crop_maps, teacher_attribution,
 from stage0.datasets import Stage0Dataset, WithIndex, build_eval_transform, build_train_transform
 from stage0.engine import accuracy, amp_ctx, get_device, make_loader, numpy_collate_box_index, predict
 from stage0.losses import Stage0Loss
-from stage0.masking import (MMR_CRITERIA, TAM_BUCKET_CRITERIA, TAM_CACHE_CRITERIA, TAM_CRITERIA, TAM_DELTA, TAM_GAP, TRAIN_CRITERIA,
-                            RecordingMixup, StudentMaskSelector, TamSelector, mix_attribution, num_keep,
-                            tam_bucket_ks)
+from stage0.masking import (MMR_CRITERIA, ORACLE_CRITERIA, TAM_BUCKET_CRITERIA, TAM_CACHE_CRITERIA, TAM_CRITERIA,
+                            TAM_DELTA, TAM_GAP, TRAIN_CRITERIA, RecordingMixup, StudentMaskSelector, TamSelector,
+                            mix_attribution, num_keep, oracle_select, tam_bucket_ks)
 from stage0.models import (create_student, create_teacher, load_finetuned_teacher, teacher_forward,
                            teacher_forward_buckets)
 
@@ -171,6 +171,8 @@ def build_config(args, out_root, data_root):
         config.update({"tam_gap": args.tam_gap, "tam_kind": args.tam_kind, "tam_budget": args.tam_budget,
                        "tam_delta": args.tam_delta,
                        "tam_teacher_signal": "oracle" if args.mask_criterion == "tam_oracle" else "cache"})
+    if args.mask_criterion in ORACLE_CRITERIA:   # causal control: selection from the CUB bird segmentation
+        config["oracle_signal"] = "cub_segmentation (seg_cache, crop-mapped + mixed)"
     if args.mask_criterion in ("rollout", "mk_filt", "mk_mmr", "mk_fmmr") + TAM_CRITERIA:   # selection cost (GFLOPs/img), new criteria only
         from stage0.flops import selection_gflops
         config["selection_gflops"] = round(selection_gflops(args.mask_criterion, args.tam_kind or "attn_last",
@@ -274,7 +276,8 @@ def train(args, rd, config, state):
     data_root = Path(config["data_root"])
     tam = args.mode == C.MASK_MODE and args.mask_criterion in TAM_CRITERIA
     tam_cache = tam and args.mask_criterion in TAM_CACHE_CRITERIA
-    if tam_cache:   # same images (bit-identical) + crop box and sample index for the attribution-cache lookup
+    oracle = args.mode == C.MASK_MODE and args.mask_criterion in ORACLE_CRITERIA
+    if tam_cache or oracle:   # same images (bit-identical) + crop box and sample index for the cache lookup
         train_ds = WithIndex(Stage0Dataset(data_root, args.dataset, "train", build_train_transform(return_box=True),
                                            limit=args.limit))
     else:
@@ -311,7 +314,7 @@ def train(args, rd, config, state):
     criterion = Stage0Loss(args.mode, alpha=args.alpha, tau=C.KD_TAU)
     mixup_fn = None
     if config["mixup"] > 0 or config["cutmix"] > 0:
-        mixup_cls = RecordingMixup if tam else Mixup   # tam: records lam / cutmix box (same RNG, same images)
+        mixup_cls = RecordingMixup if (tam or oracle) else Mixup   # records lam / cutmix box (same RNG, same images)
         mixup_fn = mixup_cls(mixup_alpha=config["mixup"], cutmix_alpha=config["cutmix"], prob=C.MIXUP_PROB,
                          switch_prob=C.MIXUP_SWITCH_PROB, mode=C.MIXUP_MODE,
                          label_smoothing=config["smoothing"], num_classes=config["num_classes"])
@@ -328,6 +331,10 @@ def train(args, rd, config, state):
         tflops = {kb: teacher_gflops(kb, config["num_classes"]) for kb in set(bucket_ks)}
         print(f"TAM: kind {config['tam_kind']}, gap {config['tam_gap']}, budget {config['tam_budget']}, "
               f"k per bucket {bucket_ks}, teacher GFLOPs {tflops}")
+    elif oracle:
+        from stage0.seg_cache import SegCache
+        seg_cache = SegCache(config["output_root"], args.dataset)
+        selector = None
     else:
         selector = StudentMaskSelector(args.mask_criterion, args.keep, model) if masked else None
     stack = contextlib.ExitStack()
@@ -335,7 +342,7 @@ def train(args, rd, config, state):
         stack.enter_context(selector)   # maskedkd: hooks on the student's last attention block
     csv_fields = CSV_FIELDS + (["mask_agree"] if masked else []) \
         + (["tam_gap_ratio", "mean_k", "bucket_k", "teacher_gflops"] if tam else []) \
-        + (["cache_oracle_overlap"] if tam_cache else [])
+        + (["cache_oracle_overlap"] if tam_cache else []) + (["sel_bird_share", "view_bird_share"] if oracle else [])
     mmr = masked and args.mask_criterion in MMR_CRITERIA
     if mmr:
         csv_fields = csv_fields + list(StudentMaskSelector.DIAG_FIELDS)
@@ -371,7 +378,7 @@ def train(args, rd, config, state):
         batch_sampler = torch.utils.data.BatchSampler(sampler, args.batch_size, drop_last=True)
         loader = make_loader(train_ds, None, num_workers, batch_sampler=batch_sampler,
                              generator=torch.Generator().manual_seed(C.epoch_seed(args.seed, epoch, 2)),
-                             **({"collate_fn": numpy_collate_box_index} if tam_cache else {}))
+                             **({"collate_fn": numpy_collate_box_index} if (tam_cache or oracle) else {}))
         model.train()
         sums = {"loss": 0.0, "ce": 0.0, "kd": 0.0, "correct": 0, "n": 0}
         mask_agree = None
@@ -379,12 +386,17 @@ def train(args, rd, config, state):
             selector.set_epoch(epoch, args.epochs)
             tam_tokens, tam_gflops = 0, 0.0
             overlap = None
+        if oracle:
+            o_sel, o_view, o_n = 0.0, 0.0, 0
         for step, batch in enumerate(loader):
             x, y = batch[0], batch[1]
             if tam_cache:   # cached teacher attribution on this view's crop (mixed after mixup below)
                 rels = [train_ds.items[i][0] for i in batch[4].tolist()]
                 T_attr = crop_maps(attr_cache.lookup(config["tam_kind"], rels).to(device),
                                    batch[3].to(device)).flatten(1)
+            if oracle:      # bird fraction per patch of this view (before mixup; mixed below like the images)
+                rels = [train_ds.items[i][0] for i in batch[4].tolist()]
+                bird_view = crop_maps(seg_cache.lookup(rels).to(device), batch[3].to(device)).flatten(1)
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
             if tam_cache and step == 0:   # cache vs oracle top-k overlap, first micro-batch of the epoch
@@ -396,6 +408,8 @@ def train(args, rd, config, state):
                 x, target = mixup_fn(x, y)
             if tam_cache:   # cached maps of the two source views -> attribution of the mixed image
                 T_attr = mix_attribution(T_attr, mixup_fn.last)
+            if oracle:
+                bird_mixed = mix_attribution(bird_view, mixup_fn.last)
             elif tam:       # tam_oracle: teacher attribution on the mixed image the teacher actually sees
                 T_attr = teacher_attribution(teacher, x, config["tam_kind"], lambda: amp_ctx(device, amp), micro)
             if hash_log:
@@ -406,9 +420,11 @@ def train(args, rd, config, state):
             optimizer.zero_grad(set_to_none=True)
             # random criterion: dedicated generator per step (never the global RNG -> pairing with kd preserved)
             mask_gen = torch.Generator().manual_seed(C.epoch_seed(args.seed, epoch, 4) + step) if masked else None
-            t_chunks = T_attr.split(micro) if tam else [None] * len(x.split(micro))
-            for c, (xs, ts, ys, t_attr) in enumerate(zip(x.split(micro), target.split(micro), y.split(micro),
-                                                          t_chunks)):
+            t_chunks = T_attr.split(micro) if tam else (bird_mixed.split(micro) if oracle
+                                                         else [None] * len(x.split(micro)))
+            b_chunks = bird_view.split(micro) if oracle else [None] * len(x.split(micro))
+            for c, (xs, ts, ys, t_attr, b_view) in enumerate(zip(x.split(micro), target.split(micro), y.split(micro),
+                                                                  t_chunks, b_chunks)):
                 with amp_ctx(device, amp):
                     out = model(xs)
                     if tam:
@@ -421,6 +437,15 @@ def train(args, rd, config, state):
                             parts = [(rows.numel(), idx.shape[1]) for rows, idx in sel]
                         tam_tokens += sum(nb * kb for nb, kb in parts)
                         tam_gflops += sum(nb * tflops[kb] for nb, kb in parts)
+                        if step == 0 and c == 0:
+                            t_full = teacher_forward(teacher, xs)
+                            mask_agree = (t_logits.argmax(1) == t_full.argmax(1)).float().mean().item()
+                    elif oracle:
+                        keep_idx = oracle_select(t_attr, num_keep(args.keep), args.mask_criterion, mask_gen)
+                        t_logits = teacher_forward(teacher, xs, keep_idx)
+                        o_sel += torch.gather(b_view, 1, keep_idx).mean(1).sum().item()   # pre-mix view (diagnostic)
+                        o_view += b_view.mean(1).sum().item()
+                        o_n += xs.shape[0]
                         if step == 0 and c == 0:
                             t_full = teacher_forward(teacher, xs)
                             mask_agree = (t_logits.argmax(1) == t_full.argmax(1)).float().mean().item()
@@ -462,6 +487,8 @@ def train(args, rd, config, state):
             assert abs(tam_tokens / n - num_keep(args.keep)) <= 1.0, (tam_tokens / n, num_keep(args.keep))
         if tam_cache:
             row["cache_oracle_overlap"] = f"{overlap:.4f}"
+        if oracle:
+            row.update({"sel_bird_share": f"{o_sel / max(1, o_n):.4f}", "view_bird_share": f"{o_view / max(1, o_n):.4f}"})
         if mmr:
             row.update({key: f"{v:.4f}" for key, v in selector.pop_diag().items()})
 

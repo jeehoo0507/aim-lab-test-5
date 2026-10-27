@@ -22,6 +22,9 @@
                        pool (0..1) - MMR_LAMBDA * max cos(h_i, h_selected) on the student's last-block patch
                        features centred per image (diversity); fmmr = both. log.csv gets sink / redundancy / overlap diagnostics.
                  No cache, no RNG, selection cost ~ maskedkd. lambda and the ratio are fixed a priori.
+  oracle_bird / oracle_bg  causal control, not a method: the k patches with the MOST (bird) / LEAST (bg) bird area
+                 from the CUB segmentation (seg_cache.py, crop-mapped and mixed exactly like the TAM cache).
+                 Ties (e.g. a crop with no bird) are broken by a tiny noise from the run's mask generator.
 Training criteria (Stage 2 / 3 pilot): maskedkd, random, rollout (student rollout, Stage 1 criterion), tam,
 tam_var, tam_oracle, tam_r (tam with S = student attention rollout instead of the last-block CLS attention).
 """
@@ -32,7 +35,8 @@ from stage0.attention import AttentionRecorder
 NUM_PATCHES = 196
 CRITERIA = ("maskedkd", "random", "rollout", "teacher_cache", "teacher_oracle")
 TRAIN_CRITERIA = ("maskedkd", "random", "rollout", "tam", "tam_var", "tam_oracle", "tam_r", "tam_r_var",
-                  "mk_filt", "mk_mmr", "mk_fmmr")   # Stage 2 + Stage 3 pilot
+                  "mk_filt", "mk_mmr", "mk_fmmr", "oracle_bird", "oracle_bg")   # Stage 2 + Stage 3 pilot + oracle
+ORACLE_CRITERIA = ("oracle_bird", "oracle_bg")
 STAGE2_CRITERIA = ("maskedkd", "random")            # default of `scheduler --stage 2` (unchanged)
 MMR_CRITERIA = ("mk_filt", "mk_mmr", "mk_fmmr")
 STUDENT_CRITERIA = ("maskedkd", "random", "rollout") + MMR_CRITERIA  # StudentMaskSelector
@@ -53,6 +57,16 @@ def num_keep(keep, n=NUM_PATCHES):
 
 def topk_idx(scores, k):
     return torch.topk(scores.float(), k, dim=1).indices
+
+
+def oracle_select(bird, k, criterion, generator=None):
+    """bird: (B, 196) bird-area score of each patch on the (mixed) view. oracle_bird -> top-k, oracle_bg -> bottom-k.
+    A noise far below any real difference (1e-6 of the row range) breaks ties without the global RNG."""
+    assert criterion in ORACLE_CRITERIA, criterion
+    s = bird.float()
+    if generator is not None:
+        s = s + 1e-6 * torch.rand(s.shape, generator=generator).to(s.device)
+    return topk_idx(s if criterion == "oracle_bird" else -s, k)
 
 
 def random_idx(batch, k, generator, device, n=NUM_PATCHES):
