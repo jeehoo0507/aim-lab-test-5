@@ -17,6 +17,10 @@ Pre-registered rules (fixed before the runs; paired dWGA = run - Full KD, same s
                                                          threshold: the g = 0 setting was chosen after seeing earlier
                                                          test results, so this is not a clean confirmatory test)
   R5 rollout limit    rollout collapses at keep k      : dWGA(rollout, k) <= -3 and 3/3 negative, k in (0.1, 0.05)
+  R6 layer fix (mk_L*, L* picked on VAL by select_layer.py before training)
+                      fixes MaskedKD                   : WGA(mk_L*) - WGA(MaskedKD) >= +10 and 3/3 positive (same keep)
+                      at rollout level                 : |WGA(mk_L*) - WGA(rollout)| <= 2 (mean)
+  R7 token budget     oracle_bird collapses at keep k  : dWGA <= -3 and 3/3 negative -> a limit no selection can fix
 """
 import argparse
 import csv
@@ -28,11 +32,21 @@ from stage0 import common as C
 from stage0.summarize_wga import GROUPS, fmt, load_runs, mean, paired, sd
 
 DROP, SINK_GAIN = -3.0, 5.0
-RUNS = [("maskedkd", 0.15), ("maskedkd", 0.25), ("random", 0.25), ("random", 0.15), ("mk_filt", 0.15),
-        ("tam_r_g0", 0.15), ("oracle_bird", 0.15), ("oracle_bg", 0.15),
+RUNS = [("maskedkd", 0.25), ("maskedkd", 0.15), ("maskedkd", 0.1), ("random", 0.25), ("random", 0.15),
+        ("mk_filt", 0.15), ("mk_dh2", 0.15), ("tam_r_g0", 0.15),
+        ("oracle_bird", 0.15), ("oracle_bird", 0.1), ("oracle_bird", 0.05), ("oracle_bg", 0.15),
         ("rollout", 0.25), ("rollout", 0.15), ("rollout", 0.1), ("rollout", 0.05)]
 LABEL = {"maskedkd": "MaskedKD", "random": "random", "mk_filt": "MaskedKD + sink 필터", "tam_r_g0": "TrustMask",
-         "oracle_bird": "oracle: 새만", "oracle_bg": "oracle: 배경만", "rollout": "rollout"}
+         "oracle_bird": "oracle: 새만", "oracle_bg": "oracle: 배경만", "rollout": "rollout",
+         "mk_dh0": "MaskedKD − head 0", "mk_dh1": "MaskedKD − head 1", "mk_dh2": "MaskedKD − head 2"}
+FIX_GAIN, ROLLOUT_EQ = 10.0, 2.0
+LABEL.update({f"mk_L{l}": f"MaskedKD @ L{l}" for l in range(12)})
+
+
+def layer_runs(root, ds):
+    """mk_L{l} runs that exist (L* chosen on val by select_layer.py), at 0.15 / 0.1 / 0.05."""
+    found = sorted({p.parent.name.split("_k")[0] for p in (Path(root) / ds).glob("mk_L*_k*/seed*")})
+    return [(c, k) for c in found for k in (0.15, 0.1, 0.05)]
 
 
 def epoch_time(root, ds, d):
@@ -59,6 +73,7 @@ def main():
     res = Path(os.environ.get("RESULTS_DIR", "results"))
     res.mkdir(parents=True, exist_ok=True)
     kd = load_runs(root, ds, "kd", a.seeds)
+    RUNS[:] = RUNS + [r for r in layer_runs(root, ds) if r not in RUNS]
     R = {(c, k): load_runs(root, ds, C.mask_dirname(c, k), a.seeds) for c, k in RUNS}
     md = ["# 후속 실험: 대조군·인과·후보 방법 (Waterbirds)", "",
           f"seed {a.seeds}, Full KD 대비 같은 seed 차이. 비어 있는 칸은 아직 안 끝났거나 돌리지 않은 run.", ""]
@@ -128,6 +143,31 @@ def main():
             md.append(f"- **R5 rollout 한계 (keep {k:g})**: ΔWGA {line(d5)} → "
                       + ("rollout도 붕괴" if verdict(d5, lambda m: m <= DROP) and all(x < 0 for x in d5.values())
                          else "rollout 유지"))
+
+    sel = Path(os.environ.get("RESULTS_DIR", "results")) / "why_more" / "layer_select.json"
+    for c, k in [r for r in RUNS if r[0].startswith("mk_L")]:
+        d6 = paired(R[(c, k)], R[("maskedkd", k)], "wga") if R.get(("maskedkd", k)) else {}
+        d6r = paired(R[(c, k)], R[("rollout", k)], "wga")
+        if not R[(c, k)]:
+            continue
+        fix = verdict(d6, lambda m: m >= FIX_GAIN) and all(x > 0 for x in d6.values())
+        eq = bool(d6r) and abs(statistics.mean(d6r.values())) <= ROLLOUT_EQ
+        md.append(f"- **R6 {LABEL[c]} (keep {k:g})**: − MaskedKD {line(d6, pos=True) if d6 else 'MaskedKD run 없음'}, "
+                  f"− rollout {line(d6r, pos=True)} → "
+                  + ("**MaskedKD 비용으로 rollout 수준 회복**" if fix and eq else
+                     ("MaskedKD보다 회복 (rollout과는 차이)" if fix else "회복 기준 미달")))
+    if sel.exists():
+        md.append(f"  - 층은 val로 고름 (`why_more/layer_select.md`, L* = {C.load_json(sel)['layer']}), test는 보지 않음")
+    for k in (0.1, 0.05):
+        d7 = dif("oracle_bird", k)
+        if d7:
+            md.append(f"- **R7 token 수 한계 (oracle 새만, keep {k:g})**: ΔWGA {line(d7)} → "
+                      + ("**새만 남겨도 붕괴 = token 수 한계** (선택 기준으로 못 막는 영역)"
+                         if verdict(d7, lambda m: m <= DROP) and all(x < 0 for x in d7.values()) else "새만 남기면 유지"))
+    d8 = paired(R[("mk_dh2", 0.15)], R[("maskedkd", 0.15)], "wga")
+    if d8:
+        md.append(f"- (보조) MaskedKD − head 2 vs MaskedKD (keep 0.15): {line(d8, pos=True)} "
+                  "(head 2는 test 분석을 보고 고른 것이라 보조 결과)")
 
     md += ["", "## 3. 효율 (teacher 계산량, 1장당)", ""]
     if not a.no_flops:

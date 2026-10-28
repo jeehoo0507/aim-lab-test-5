@@ -120,6 +120,11 @@ def run_selection(crit, k, sig, B, T, seed):
         s = sig["cls"][-1] - 1e4 * sinks_of(sig["norm"]).float()
     elif crit == "rollout":
         s = sig["rollout"]
+    elif crit.startswith("mk_L"):
+        s = sig["cls"][int(crit[4:])]
+    elif crit.startswith("mk_dh"):
+        h = int(crit[5:])
+        s = sig["heads"][:, [i for i in range(sig["heads"].shape[1]) if i != h]].mean(1)
     elif crit == "random":
         s = torch.rand(B.shape, generator=torch.Generator().manual_seed(seed))
     elif crit in ("oracle_bird", "oracle_bg"):
@@ -283,7 +288,9 @@ def report(rows, sink_rows, a):
                     md.append(f"| {who} | {np.mean([r['sinks_per_img'] for r in S]):.1f} | "
                               f"{np.mean([r['sink_bird'] for r in S]):.2f} | {np.mean([r['nonsink_bird'] for r in S]):.2f} |")
             md.append("")
-    # B. background-driven errors
+    # B. background-driven errors (needs part A rows)
+    if not any(r["part"] == "A" for r in rows):
+        return md + c_section(rows, a, sp)
     md += [f"## B. teacher 오류는 배경 때문인가 ({sp}, keep {a.keep:g}, 마스크된 teacher의 오답률 %)", "",
            "충돌 그룹(g1 육지새/물, g2 물새/땅) vs 일치 그룹(g0, g3), 남긴 패치의 새 비율 구간별. "
            "배경이 target을 정하면 같은 새 비율에서도 충돌 그룹 오답률이 훨씬 높다.", "",
@@ -310,7 +317,11 @@ def report(rows, sink_rows, a):
                   + ("**지지**" if avg >= H_BG_GAP else "지지 안 됨") + f" (기준 ≥ {H_BG_GAP:g}%p)")
     if not gaps:
         md.append("- 구간별 표본(≥ 10) 부족 → 판정 없음")
-    # C. per-run criteria
+    return md + c_section(rows, a, sp)
+
+
+def c_section(rows, a, sp):
+    md = []
     R = sel_(rows, part="C", split=sp)
     if R:
         md += ["", f"## C. 학습된 각 run이 고르는 패치 ({sp}, 자기 student, 자기 기준)", "",

@@ -11,7 +11,7 @@
 #   export DATA_ROOT=$HOME/stage0/data OUTPUT_ROOT=$HOME/stage0/outputs HF_HOME=$HOME/stage0/hf GPUS=0
 #   setsid nohup ./scripts/run_more.sh > $HOME/more.log 2>&1 < /dev/null &      # terminal can be closed
 #   tail -f $HOME/more.log
-# Options (env): P=3 (runs at a time)  SEEDS="0 1 2"  JOBS="random:0.15 ..." (override the list)  BACKUP_DIR=...
+# Options (env): SKIP_AB=1 (skip step 2)  C_SUFFIX=_2 (name of the part-C report)  P=3 (runs at a time)  SEEDS="0 1 2"  JOBS="random:0.15 ..." (override the list)  BACKUP_DIR=...
 # Smoke-only (env): TRAIN_ARGS EVAL_ARGS WHY_ARGS SEG_ARGS ATTR_ARGS SUMMARY_ARGS
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -56,10 +56,12 @@ step "1/4 caches (TrustMask teacher map, bird segmentation)"
 uv run python -m stage0.make_attribution_cache --dataset $DS ${ATTR_ARGS:-}
 uv run python -m stage0.seg_cache --dataset $DS ${SEG_ARGS:-}
 
-step "2/4 analysis on existing checkpoints (signal decomposition, background-driven errors)"
-uv run python -m stage0.why_more --parts A B ${WHY_ARGS:-}
-cp "$RES/why_more/why_more.md" "$RES/why_more/why_more_AB.md"
-backup
+if [[ "${SKIP_AB:-0}" != 1 ]]; then
+  step "2/4 analysis on existing checkpoints (signal decomposition, background-driven errors)"
+  uv run python -m stage0.why_more --parts A B ${WHY_ARGS:-}
+  cp "$RES/why_more/why_more.md" "$RES/why_more/why_more_AB.md"
+  backup
+fi
 
 step "3/4 training ($N runs, priority order)"
 export DS LR EXTRA=${TRAIN_ARGS:-} EVX=${EVAL_ARGS:-} LOGDIR=$OUTPUT_ROOT/_more_logs; mkdir -p "$LOGDIR"
@@ -86,7 +88,7 @@ backup
 step "4/4 analysis of the new runs + summary"
 RUNS=$(for j in maskedkd:0.15 rollout:0.15 $JOBS; do echo -n "$j "; done)
 uv run python -m stage0.why_more --parts C --runs $RUNS ${WHY_ARGS:-}
-cp "$RES/why_more/why_more.md" "$RES/why_more/why_more_C.md"
+cp "$RES/why_more/why_more.md" "$RES/why_more/why_more_C${C_SUFFIX:-}.md"
 uv run python -m stage0.summarize_more ${SUMMARY_ARGS:-}
 backup
 NF=$(grep -l "Traceback\|\[error\]" "$LOGDIR"/*.log 2>/dev/null | wc -l || true)

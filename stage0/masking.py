@@ -22,6 +22,8 @@
                        pool (0..1) - MMR_LAMBDA * max cos(h_i, h_selected) on the student's last-block patch
                        features centred per image (diversity); fmmr = both. log.csv gets sink / redundancy / overlap diagnostics.
                  No cache, no RNG, selection cost ~ maskedkd. lambda and the ratio are fixed a priori.
+  mk_L{l}        MaskedKD with the CLS attention of student layer l (0-based) instead of the last one; same cost
+  mk_dh{h}       MaskedKD (last layer) with head h left out of the head mean
   oracle_bird / oracle_bg  causal control, not a method: the k patches with the MOST (bird) / LEAST (bg) bird area
                  from the CUB segmentation (seg_cache.py, crop-mapped and mixed exactly like the TAM cache).
                  Ties (e.g. a crop with no bird) are broken by a tiny noise from the run's mask generator.
@@ -30,16 +32,19 @@ tam_var, tam_oracle, tam_r (tam with S = student attention rollout instead of th
 """
 import torch
 
-from stage0.attention import AttentionRecorder
+from stage0.attention import AttentionRecorder, attention_probs
 
 NUM_PATCHES = 196
 CRITERIA = ("maskedkd", "random", "rollout", "teacher_cache", "teacher_oracle")
 TRAIN_CRITERIA = ("maskedkd", "random", "rollout", "tam", "tam_var", "tam_oracle", "tam_r", "tam_r_var",
                   "mk_filt", "mk_mmr", "mk_fmmr", "oracle_bird", "oracle_bg")   # Stage 2 + Stage 3 pilot + oracle
 ORACLE_CRITERIA = ("oracle_bird", "oracle_bg")
+LAYER_CRITERIA = tuple(f"mk_L{l}" for l in range(12))       # CLS attention of ONE student layer (head mean)
+DROPHEAD_CRITERIA = tuple(f"mk_dh{h}" for h in range(3))      # last-layer CLS attention without head h
+TRAIN_CRITERIA = TRAIN_CRITERIA + LAYER_CRITERIA + DROPHEAD_CRITERIA
 STAGE2_CRITERIA = ("maskedkd", "random")            # default of `scheduler --stage 2` (unchanged)
 MMR_CRITERIA = ("mk_filt", "mk_mmr", "mk_fmmr")
-STUDENT_CRITERIA = ("maskedkd", "random", "rollout") + MMR_CRITERIA  # StudentMaskSelector
+STUDENT_CRITERIA = ("maskedkd", "random", "rollout") + MMR_CRITERIA + LAYER_CRITERIA + DROPHEAD_CRITERIA
 MMR_LAMBDA = 0.5
 SINK_RATIO = 3.0
 TAM_CRITERIA = ("tam", "tam_var", "tam_oracle", "tam_r", "tam_r_var")
@@ -130,6 +135,25 @@ class _LastFeatures:
         self.handle.remove()
 
 
+class LayerCLSRecorder:
+    """CLS -> patch attention of one block, mean over the kept heads (B, 196), from that block's own forward."""
+
+    def __init__(self, model, layer, drop_heads=()):
+        self.block, self.drop, self.handle, self.cls = model.blocks[layer], tuple(drop_heads), None, None
+
+    def __enter__(self):
+        def hook(module, inputs, _o):
+            with torch.no_grad():
+                a = attention_probs(module, inputs[0].detach(), rows=slice(0, 1))[:, :, 0, 1:]   # (B, H, 196)
+                keep = [h for h in range(a.shape[1]) if h not in self.drop]
+                self.cls = a[:, keep].mean(1)
+        self.handle = self.block.attn.register_forward_hook(hook)
+        return self
+
+    def __exit__(self, *exc):
+        self.handle.remove()
+
+
 class StudentMaskSelector:
     """Training-time selection for Stage 2 (criteria maskedkd / random).
 
@@ -145,6 +169,10 @@ class StudentMaskSelector:
         if criterion == "rollout":   # all blocks hooked: rollout of the student's training forward
             self.recorder = AttentionRecorder(student, need=("rollout",))
         self.feats = None
+        if criterion in LAYER_CRITERIA:
+            self.recorder = LayerCLSRecorder(student, int(criterion[4:]))
+        if criterion in DROPHEAD_CRITERIA:
+            self.recorder = LayerCLSRecorder(student, len(student.blocks) - 1, drop_heads=(int(criterion[5:]),))
         if criterion in MMR_CRITERIA:
             self.recorder = AttentionRecorder(student, need=("cls_last",))
             self.feats = _LastFeatures(student)
@@ -175,6 +203,11 @@ class StudentMaskSelector:
 
     def select(self, batch, device, generator=None):
         """Call right after the student forward on the same micro-batch."""
+        if self.criterion in LAYER_CRITERIA + DROPHEAD_CRITERIA:
+            scores = self.recorder.cls
+            assert scores is not None and scores.shape[0] == batch, "student forward must run before select()"
+            self.recorder.cls = None
+            return topk_idx(scores, self.k)
         if self.criterion == "maskedkd":
             scores = self.recorder.cls_last
             assert scores is not None and scores.shape[0] == batch, "student forward must run before select()"

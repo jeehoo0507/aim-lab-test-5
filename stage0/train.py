@@ -173,7 +173,8 @@ def build_config(args, out_root, data_root):
                        "tam_teacher_signal": "oracle" if args.mask_criterion == "tam_oracle" else "cache"})
     if args.mask_criterion in ORACLE_CRITERIA:   # causal control: selection from the CUB bird segmentation
         config["oracle_signal"] = "cub_segmentation (seg_cache, crop-mapped + mixed)"
-    if args.mask_criterion in ("rollout", "mk_filt", "mk_mmr", "mk_fmmr") + TAM_CRITERIA:   # selection cost (GFLOPs/img), new criteria only
+    if args.mask_criterion in ("rollout", "mk_filt", "mk_mmr", "mk_fmmr") + TAM_CRITERIA \
+            or (args.mask_criterion or "").startswith(("mk_L", "mk_dh")):   # selection cost (GFLOPs/img), new criteria only
         from stage0.flops import selection_gflops
         config["selection_gflops"] = round(selection_gflops(args.mask_criterion, args.tam_kind or "attn_last",
                                                             config["num_classes"]), 4)
